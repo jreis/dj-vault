@@ -1,6 +1,10 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { SEED_TRACKS } from "../data/seedTracks"
+import {
+  ensureSeedTracks,
+  repairDeadYoutubeIds,
+  SEED_TRACKS,
+} from "../data/seedTracks"
 import type { Filters, Genre, Track } from "../types"
 
 function uid(): string {
@@ -282,10 +286,11 @@ export const useVaultStore = create<VaultState>()(
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<VaultState>
-        const tracks =
+        const rawTracks =
           Array.isArray(p.tracks) && p.tracks.length > 0
             ? p.tracks
             : current.tracks
+        const tracks = ensureSeedTracks(repairDeadYoutubeIds(rawTracks))
 
         const trackIds = new Set(tracks.map((t) => t.id))
         const nowPlayingId =

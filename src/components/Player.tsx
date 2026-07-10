@@ -1,6 +1,14 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useVaultStore } from "../store/useVaultStore"
-import { youtubeEmbedUrl, youtubeWatchUrl } from "../lib/youtube"
+import { youtubeWatchUrl } from "../lib/youtube"
+import {
+  createYouTubePlayer,
+  youtubeErrorMessage,
+  type YtPlayer,
+} from "../lib/youtubeApi"
+
+/** Auto-skip delay after an unavailable embed so the user can read the message. */
+const UNAVAILABLE_SKIP_MS = 2500
 
 export function Player() {
   const tracks = useVaultStore((s) => s.tracks)
@@ -22,14 +30,108 @@ export function Player() {
     .map((id) => tracks.find((t) => t.id === id))
     .filter(Boolean)
 
-  // Continuous multi-track embed: now playing + remaining queue YouTube IDs
-  const playlistYtIds = useMemo(() => {
-    return queue
-      .map((id) => tracks.find((t) => t.id === id)?.youtubeId)
-      .filter((id): id is string => Boolean(id))
-  }, [queue, tracks])
-
   const setSize = (current ? 1 : 0) + queueTracks.length
+
+  const hostRef = useRef<HTMLDivElement>(null)
+  const playerRef = useRef<YtPlayer | null>(null)
+  /** Track id the player was last wired for — guards stale async callbacks. */
+  const wiredTrackIdRef = useRef<string | null>(null)
+  const playNextRef = useRef(playNext)
+  playNextRef.current = playNext
+
+  const [unavailable, setUnavailable] = useState<string | null>(null)
+  const [playerReady, setPlayerReady] = useState(false)
+  const [apiError, setApiError] = useState<string | null>(null)
+
+  const trackId = current?.id ?? null
+  const videoId = current?.youtubeId ?? null
+
+  // Mount / remount YouTube player when the vault track changes.
+  useEffect(() => {
+    if (!trackId || !videoId) {
+      playerRef.current?.destroy()
+      playerRef.current = null
+      wiredTrackIdRef.current = null
+      setUnavailable(null)
+      setPlayerReady(false)
+      setApiError(null)
+      return
+    }
+
+    wiredTrackIdRef.current = trackId
+    setUnavailable(null)
+    setPlayerReady(false)
+    setApiError(null)
+
+    let cancelled = false
+    let skipTimer: ReturnType<typeof setTimeout> | null = null
+    const host = hostRef.current
+    if (!host) return
+
+    // YT.Player replaces the host node; keep a stable mount point via a child.
+    host.replaceChildren()
+    const mount = document.createElement("div")
+    mount.className = "h-full w-full"
+    host.appendChild(mount)
+
+    playerRef.current?.destroy()
+    playerRef.current = null
+
+    const scheduleSkip = () => {
+      if (skipTimer) clearTimeout(skipTimer)
+      skipTimer = setTimeout(() => {
+        if (cancelled || wiredTrackIdRef.current !== trackId) return
+        playNextRef.current()
+      }, UNAVAILABLE_SKIP_MS)
+    }
+
+    createYouTubePlayer({
+      element: mount,
+      videoId,
+      autoplay: true,
+      onReady: () => {
+        if (cancelled || wiredTrackIdRef.current !== trackId) return
+        setPlayerReady(true)
+      },
+      onEnded: () => {
+        if (cancelled || wiredTrackIdRef.current !== trackId) return
+        playNextRef.current()
+      },
+      onError: (code) => {
+        if (cancelled || wiredTrackIdRef.current !== trackId) return
+        setUnavailable(youtubeErrorMessage(code))
+        scheduleSkip()
+      },
+    })
+      .then((player) => {
+        if (cancelled || wiredTrackIdRef.current !== trackId) {
+          player.destroy()
+          return
+        }
+        playerRef.current = player
+      })
+      .catch((err: unknown) => {
+        if (cancelled || wiredTrackIdRef.current !== trackId) return
+        const msg =
+          err instanceof Error ? err.message : "Could not load YouTube player"
+        setApiError(msg)
+        setUnavailable("Player failed to load")
+        scheduleSkip()
+      })
+
+    return () => {
+      cancelled = true
+      if (skipTimer) clearTimeout(skipTimer)
+      playerRef.current?.destroy()
+      playerRef.current = null
+    }
+  }, [trackId, videoId])
+
+  const skipLabel = useMemo(() => {
+    if (!unavailable) return null
+    const hasQueue = queue.length > 0
+    return hasQueue ? "Skipping to next in queue…" : "Skipping to next track…"
+  }, [unavailable, queue.length])
 
   return (
     <aside className="flex flex-col gap-4">
@@ -47,15 +149,54 @@ export function Player() {
 
         {current ? (
           <>
-            <div className="aspect-video w-full bg-black">
-              <iframe
-                key={`${current.youtubeId}-${playlistYtIds.join(",")}`}
-                title={`${current.title} — ${current.artist}`}
-                src={youtubeEmbedUrl(current.youtubeId, true, playlistYtIds)}
-                className="h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
+            <div className="relative aspect-video w-full bg-black">
+              <div ref={hostRef} className="h-full w-full" />
+              {unavailable && (
+                <div
+                  className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-stone-950/92 p-6 text-center backdrop-blur-sm"
+                  role="alert"
+                >
+                  <p className="text-sm font-semibold text-vault-red">
+                    Video unavailable
+                  </p>
+                  <p className="max-w-xs text-xs text-vault-muted">
+                    {unavailable}
+                    {apiError ? ` · ${apiError}` : ""}
+                  </p>
+                  {skipLabel && (
+                    <p className="text-[11px] text-vault-amber/90">{skipLabel}</p>
+                  )}
+                  <div className="mt-1 flex flex-wrap justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => playNext()}
+                      className="min-h-9 rounded-lg border border-vault-amber bg-vault-amber/15 px-3 py-1.5 text-xs font-medium text-vault-amber hover:bg-vault-amber/25"
+                    >
+                      Skip now
+                    </button>
+                    <a
+                      href={youtubeWatchUrl(current.youtubeId)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="min-h-9 rounded-lg border border-vault-border px-3 py-1.5 text-xs text-vault-muted hover:text-vault-blue"
+                    >
+                      Open on YouTube ↗
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => stop()}
+                      className="min-h-9 rounded-lg border border-vault-border px-3 py-1.5 text-xs text-vault-muted hover:text-vault-red"
+                    >
+                      Stop
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!playerReady && !unavailable && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
+                  <span className="text-xs text-vault-muted">Loading…</span>
+                </div>
+              )}
             </div>
             <div className="space-y-3 p-4">
               <div>
@@ -116,9 +257,10 @@ export function Player() {
                   Similar
                 </button>
               </div>
-              {playlistYtIds.length > 0 && (
+              {queueTracks.length > 0 && !unavailable && (
                 <p className="text-[11px] text-vault-muted/80">
-                  YouTube will auto-advance through the queue after this track.
+                  Auto-advances through the queue when a track ends (or is
+                  unavailable).
                 </p>
               )}
             </div>

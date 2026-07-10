@@ -1,12 +1,50 @@
 import type { Track } from "../types"
 
+/**
+ * Known-dead YouTube IDs that shipped in earlier seed data → current working IDs.
+ * Applied on rehydrate so existing localStorage libraries heal without a reset.
+ */
+const DEAD_YOUTUBE_ID_FIXES: Record<string, string> = {
+  // Enter Sandman (was invalid 12-char id)
+  "CD-EFX1cexq4": "CD-E-LDc384",
+  // Paranoid / Self Esteem / Man in the Box (removed or bad ids)
+  uk_wUT1CvWM: "0qanF-91aJo",
+  RUJMqVkYYIs: "Abrn8aVQ76Q",
+  iwa9IY8uxsQ: "TAqZb52sgpU",
+}
+
+/** Replace known-dead seed youtubeIds; leaves custom tracks alone unless ID matches. */
+export function repairDeadYoutubeIds(tracks: Track[]): Track[] {
+  let changed = false
+  const next = tracks.map((t) => {
+    const fixed = DEAD_YOUTUBE_ID_FIXES[t.youtubeId]
+    if (!fixed || fixed === t.youtubeId) return t
+    changed = true
+    return { ...t, youtubeId: fixed }
+  })
+  return changed ? next : tracks
+}
+
+/**
+ * Append any seed tracks missing from a persisted library (by id and youtubeId).
+ * Lets new seeds show up without forcing a full vault reset.
+ */
+export function ensureSeedTracks(tracks: Track[]): Track[] {
+  const ids = new Set(tracks.map((t) => t.id))
+  const yts = new Set(tracks.map((t) => t.youtubeId))
+  const missing = SEED_TRACKS.filter(
+    (s) => !ids.has(s.id) && !yts.has(s.youtubeId),
+  )
+  return missing.length > 0 ? [...tracks, ...missing] : tracks
+}
+
 /** Curated starter vault — 90s/00s rock, metal, grunge, punk classics */
 export const SEED_TRACKS: Track[] = [
   {
     id: "seed-1",
     title: "Enter Sandman",
     artist: "Metallica",
-    youtubeId: "CD-EFX1cexq4",
+    youtubeId: "CD-E-LDc384",
     genre: "Metal",
     era: "90s",
     year: 1991,
@@ -102,7 +140,7 @@ export const SEED_TRACKS: Track[] = [
     id: "seed-9",
     title: "Paranoid",
     artist: "Black Sabbath",
-    youtubeId: "uk_wUT1CvWM",
+    youtubeId: "0qanF-91aJo",
     genre: "Metal",
     era: "70s",
     year: 1970,
@@ -138,7 +176,7 @@ export const SEED_TRACKS: Track[] = [
     id: "seed-12",
     title: "Self Esteem",
     artist: "The Offspring",
-    youtubeId: "RUJMqVkYYIs",
+    youtubeId: "Abrn8aVQ76Q",
     genre: "Punk",
     era: "90s",
     year: 1994,
@@ -162,7 +200,7 @@ export const SEED_TRACKS: Track[] = [
     id: "seed-14",
     title: "Man in the Box",
     artist: "Alice in Chains",
-    youtubeId: "iwa9IY8uxsQ",
+    youtubeId: "TAqZb52sgpU",
     genre: "Grunge",
     era: "90s",
     year: 1990,
@@ -217,5 +255,17 @@ export const SEED_TRACKS: Track[] = [
     score: 8,
     notes: "Late-night set",
     addedAt: "2026-01-01T00:00:17.000Z",
+  },
+  {
+    id: "seed-19",
+    title: "Fixxxer",
+    artist: "Metallica",
+    youtubeId: "iDMspww39Wc",
+    genre: "Metal",
+    era: "90s",
+    year: 1997,
+    score: 10,
+    notes: "ReLoad deep cut — long-build closer energy",
+    addedAt: "2026-01-01T00:00:18.000Z",
   },
 ]

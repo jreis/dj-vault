@@ -181,7 +181,7 @@ export function Toolbar() {
           onClick={() => {
             if (
               confirm(
-                "Reset vault to the 18 seed tracks? Your votes and custom tracks will be lost.",
+                "Reset vault to the 19 seed tracks? Your votes and custom tracks will be lost.",
               )
             ) {
               resetToSeed()
