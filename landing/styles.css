@@ -146,9 +146,61 @@ main,
 }
 
 .hero {
-  max-width: var(--max);
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 2rem;
+  max-width: 960px;
   margin: 0 auto;
-  padding: 4.5rem 1.25rem 3rem;
+  padding: 3rem 1.25rem 3rem;
+}
+
+@media (min-width: 768px) {
+  .hero {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2.5rem;
+    padding: 4.5rem 1.25rem 3.5rem;
+  }
+}
+
+.hero-copy {
+  max-width: var(--max);
+  flex: 1 1 auto;
+}
+
+.hero-photo {
+  flex: 0 0 auto;
+  width: min(220px, 58vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  padding: 3px;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--amber) 75%, white),
+    color-mix(in srgb, var(--amber) 25%, var(--border)) 45%,
+    var(--border)
+  );
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--amber) 20%, transparent),
+    0 16px 48px rgba(0, 0, 0, 0.45),
+    0 0 40px color-mix(in srgb, var(--amber) 12%, transparent);
+}
+
+@media (min-width: 768px) {
+  .hero-photo {
+    width: 260px;
+  }
+}
+
+.hero-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  background: var(--elevated);
 }
 
 .eyebrow {

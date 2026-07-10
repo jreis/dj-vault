@@ -35,6 +35,11 @@ mkdirSync(root, { recursive: true })
 cpSync(join(landingDir, "index.html"), join(root, "index.html"))
 cpSync(join(landingDir, "styles.css"), join(root, "styles.css"))
 
+const portrait = join(landingDir, "jason-reis.jpg")
+if (existsSync(portrait)) {
+  copyFileSync(portrait, join(root, "jason-reis.jpg"))
+}
+
 // Shared favicon at site root
 const favicon = join(publicDir, "favicon.svg")
 if (existsSync(favicon)) {
