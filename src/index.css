@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+@theme {
+  --color-vault-bg: #0c0a09;
+  --color-vault-surface: #1c1917;
+  --color-vault-elevated: #292524;
+  --color-vault-border: #44403c;
+  --color-vault-muted: #a8a29e;
+  --color-vault-text: #fafaf9;
+  --color-vault-amber: #f59e0b;
+  --color-vault-amber-dim: #b45309;
+  --color-vault-green: #22c55e;
+  --color-vault-red: #ef4444;
+  --color-vault-blue: #38bdf8;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+html.light {
+  --color-vault-bg: #fafaf9;
+  --color-vault-surface: #ffffff;
+  --color-vault-elevated: #f5f5f4;
+  --color-vault-border: #d6d3d1;
+  --color-vault-muted: #78716c;
+  --color-vault-text: #1c1917;
+  --color-vault-amber: #d97706;
+  --color-vault-amber-dim: #b45309;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-vault-bg);
+  color: var(--color-vault-text);
+}
+
+/* Subtle vinyl groove texture */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background: repeating-radial-gradient(
+    circle at 50% 50%,
+    transparent 0,
+    transparent 2px,
+    currentColor 2px,
+    currentColor 3px
+  );
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Focus rings for keyboard nav */
+:focus-visible {
+  outline: 2px solid var(--color-vault-amber);
+  outline-offset: 2px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-vault-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-vault-muted);
+}
+
+/* Table / card selection */
+.track-row[data-selected="true"] {
+  background: color-mix(in srgb, var(--color-vault-amber) 12%, transparent);
+}
+
+.track-row:hover {
+  background: color-mix(in srgb, var(--color-vault-elevated) 80%, transparent);
+}
+
+/* Touch targets + mobile spacing */
+@media (max-width: 767px) {
+  button,
+  a,
+  select,
+  input {
+    touch-action: manipulation;
+  }
+}
+
+/* Horizontal chip scroll — hide scrollbar on WebKit when not needed */
+[role="group"][aria-label="Filter by genre"] {
+  scrollbar-width: thin;
+}
+
+/* Safe area for notched phones */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
