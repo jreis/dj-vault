@@ -5,6 +5,7 @@ import { TrackTable } from "./components/TrackTable"
 import { Player } from "./components/Player"
 import { AddTrackForm } from "./components/AddTrackForm"
 import { Toolbar } from "./components/Toolbar"
+import { SimilarTracks } from "./components/SimilarTracks"
 import { filterAndSortTracks } from "./lib/filterTracks"
 import {
   clearShareHash,
@@ -108,6 +109,8 @@ export default function App() {
           <FilterBar />
         </div>
 
+        <SimilarTracks />
+
         {/* Player first on mobile so thumbs can start a set quickly */}
         <div className="grid gap-5 lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_380px]">
           <section
@@ -124,16 +127,16 @@ export default function App() {
 
       <footer className="border-t border-vault-border px-3 py-4 text-center text-xs text-vault-muted sm:px-6">
         <p className="leading-relaxed">
-          <span className="text-vault-amber">Reis DJ Vault</span>
+          <span className="text-vault-amber">DJ Vault</span>
           {" · "}
-          Built for{" "}
+          By{" "}
           <a
             href="https://jasonreis.dev"
             className="underline decoration-vault-border underline-offset-2 hover:text-vault-amber"
             target="_blank"
             rel="noreferrer"
           >
-            jasonreis.dev
+            Jason Reis
           </a>
           <span className="hidden sm:inline">
             {" · "}

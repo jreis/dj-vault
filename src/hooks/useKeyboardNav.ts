@@ -90,6 +90,28 @@ export function useKeyboardNav(visibleIds: string[]) {
           }
           break
         }
+        case "s": {
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault()
+            const id = store.selectedId ?? store.nowPlayingId
+            if (!id) break
+            store.setSimilarTo(store.similarToId === id ? null : id)
+            // Scroll panel into view after open
+            queueMicrotask(() => {
+              document
+                .querySelector('[aria-label^="Tracks similar to"]')
+                ?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+            })
+          }
+          break
+        }
+        case "Escape": {
+          if (store.similarToId) {
+            e.preventDefault()
+            store.setSimilarTo(null)
+          }
+          break
+        }
         case "?": {
           e.preventDefault()
           alert(
@@ -101,9 +123,10 @@ export function useKeyboardNav(visibleIds: string[]) {
               "Enter play selected",
               "u/d   upvote / downvote",
               "q     add to queue",
+              "s     similar tracks for selected",
               "n/p   next / previous track",
               "a     open add-track form",
-              "Esc   blur inputs",
+              "Esc   close similar / blur inputs",
             ].join("\n"),
           )
           break

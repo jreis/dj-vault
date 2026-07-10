@@ -35,7 +35,7 @@ export function Toolbar() {
 
     const payload = {
       exportedAt: new Date().toISOString(),
-      app: "reis-dj-vault",
+      app: "dj-vault",
       version: 1,
       tracks: list,
     }

@@ -34,7 +34,7 @@ export function Header({ trackCount, visibleCount }: HeaderProps) {
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-base font-semibold tracking-tight text-vault-text sm:text-xl">
-              Reis <span className="text-vault-amber">DJ Vault</span>
+              DJ <span className="text-vault-amber">Vault</span>
             </h1>
             <p className="truncate text-[11px] text-vault-muted sm:text-xs">
               <span className="hidden sm:inline">

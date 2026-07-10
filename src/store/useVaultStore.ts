@@ -15,6 +15,8 @@ interface VaultState {
   filters: Filters
   darkMode: boolean
   showAddForm: boolean
+  /** When set, SimilarTracks panel is open for this track id. */
+  similarToId: string | null
 
   // track ops
   addTrack: (input: {
@@ -51,6 +53,7 @@ interface VaultState {
   setFilters: (partial: Partial<Filters>) => void
   clearFilters: () => void
   setShowAddForm: (open: boolean) => void
+  setSimilarTo: (id: string | null) => void
   toggleDarkMode: () => void
 }
 
@@ -72,6 +75,7 @@ export const useVaultStore = create<VaultState>()(
       filters: defaultFilters,
       darkMode: true,
       showAddForm: false,
+      similarToId: null,
 
       addTrack: (input) => {
         const track: Track = {
@@ -99,6 +103,7 @@ export const useVaultStore = create<VaultState>()(
           queue: s.queue.filter((q) => q !== id),
           nowPlayingId: s.nowPlayingId === id ? null : s.nowPlayingId,
           selectedId: s.selectedId === id ? null : s.selectedId,
+          similarToId: s.similarToId === id ? null : s.similarToId,
         }))
       },
 
@@ -253,6 +258,8 @@ export const useVaultStore = create<VaultState>()(
 
       setShowAddForm: (open) => set({ showAddForm: open }),
 
+      setSimilarTo: (id) => set({ similarToId: id }),
+
       toggleDarkMode: () => {
         set((s) => {
           const darkMode = !s.darkMode
@@ -263,7 +270,7 @@ export const useVaultStore = create<VaultState>()(
       },
     }),
     {
-      name: "reis-dj-vault-v1",
+      name: "dj-vault-v1",
       // Persist library + current track (and related UI prefs) to localStorage.
       // Transient UI (showAddForm) and selection focus are intentionally omitted.
       partialize: (s) => ({

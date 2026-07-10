@@ -14,6 +14,8 @@ export function Player() {
   const play = useVaultStore((s) => s.play)
   const moveQueue = useVaultStore((s) => s.moveQueue)
   const playSet = useVaultStore((s) => s.playSet)
+  const setSimilarTo = useVaultStore((s) => s.setSimilarTo)
+  const similarToId = useVaultStore((s) => s.similarToId)
 
   const current = tracks.find((t) => t.id === nowPlayingId)
   const queueTracks = queue
@@ -97,6 +99,22 @@ export function Player() {
                 >
                   YouTube ↗
                 </a>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSimilarTo(
+                      similarToId === current.id ? null : current.id,
+                    )
+                  }
+                  className={`min-h-9 rounded-lg border px-3 py-1.5 text-xs ${
+                    similarToId === current.id
+                      ? "border-vault-blue bg-vault-blue/15 text-vault-blue"
+                      : "border-vault-border text-vault-muted hover:border-vault-blue hover:text-vault-blue"
+                  }`}
+                  title="Find similar tracks in vault (s)"
+                >
+                  Similar
+                </button>
               </div>
               {playlistYtIds.length > 0 && (
                 <p className="text-[11px] text-vault-muted/80">

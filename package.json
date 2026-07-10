@@ -1,11 +1,11 @@
 {
-  "name": "reis-dj-vault",
+  "name": "dj-vault",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && rm -rf dist && vite build && node scripts/cf-pages.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

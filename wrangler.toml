@@ -1,0 +1,5 @@
+# Optional local tooling — Cloudflare dashboard can also set these.
+# https://developers.cloudflare.com/pages/functions/wrangler-configuration/
+name = "dj-vault"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "dist"

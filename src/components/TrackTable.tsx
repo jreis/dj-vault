@@ -15,6 +15,8 @@ export function TrackTable({ tracks }: TrackTableProps) {
   const vote = useVaultStore((s) => s.vote)
   const enqueue = useVaultStore((s) => s.enqueue)
   const removeTrack = useVaultStore((s) => s.removeTrack)
+  const setSimilarTo = useVaultStore((s) => s.setSimilarTo)
+  const similarToId = useVaultStore((s) => s.similarToId)
 
   if (tracks.length === 0) {
     return (
@@ -147,6 +149,23 @@ export function TrackTable({ tracks }: TrackTableProps) {
                       className="min-h-9 rounded-md border border-vault-border px-3 py-1 text-xs text-vault-muted disabled:opacity-40"
                     >
                       Queue
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSimilarTo(
+                          similarToId === track.id ? null : track.id,
+                        )
+                      }}
+                      className={`min-h-9 rounded-md border px-3 py-1 text-xs ${
+                        similarToId === track.id
+                          ? "border-vault-blue bg-vault-blue/15 text-vault-blue"
+                          : "border-vault-border text-vault-muted hover:border-vault-blue hover:text-vault-blue"
+                      }`}
+                      title="Find similar tracks (s)"
+                    >
+                      Similar
                     </button>
                     <button
                       type="button"
@@ -326,6 +345,23 @@ export function TrackTable({ tracks }: TrackTableProps) {
                           title="Add to queue (q)"
                         >
                           Queue
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSimilarTo(
+                              similarToId === track.id ? null : track.id,
+                            )
+                          }}
+                          className={`rounded-md border px-2 py-1 text-xs ${
+                            similarToId === track.id
+                              ? "border-vault-blue bg-vault-blue/15 text-vault-blue"
+                              : "border-vault-border text-vault-muted hover:border-vault-blue hover:text-vault-blue"
+                          }`}
+                          title="Find similar tracks (s)"
+                        >
+                          Similar
                         </button>
                         <button
                           type="button"
