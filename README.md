@@ -2,8 +2,8 @@
 
 **Curate DJ sets like a senior engineer ships systems** — vote, search, queue, and play YouTube tracks in a dark, keyboard-first music vault.
 
-Live: **[jasonreis.dev/djvault](https://jasonreis.dev/djvault)**  
-Portfolio project by [Jason Reis](https://jasonreis.dev). Personal story: lifelong DJ dream + 90s/00s rock, metal, grunge, and punk.
+Live: **[jasonreis.dev](https://jasonreis.dev)** · App: **[jasonreis.dev/djvault](https://jasonreis.dev/djvault)**  
+Portfolio + DJ Vault by [Jason Reis](https://jasonreis.dev).
 
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)
@@ -96,18 +96,21 @@ interface Track {
 
 ## Deploy — Cloudflare Pages (recommended)
 
-The production build is assembled for **Cloudflare Pages** with the app at `/djvault/`:
+The production build is assembled for **Cloudflare Pages**:
 
 ```
 dist/
-  index.html          → redirects to /djvault/
+  index.html          → portfolio landing (landing/)
+  styles.css
+  favicon.svg
   _redirects          → SPA fallback for /djvault/*
   djvault/
     index.html
     assets/
-    favicon.svg
+    …
 ```
 
+Edit the home page in `landing/`. Rebuild ships it to `/`.
 ### 1. Push the repo to GitHub
 
 ```bash

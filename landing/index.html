@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Jason Reis — engineer, builder, and lifelong DJ. Portfolio, experiments, and DJ Vault."
+    />
+    <meta name="theme-color" content="#0c0a09" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href="https://jasonreis.dev/" />
+    <title>Jason Reis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="logo" href="/">
+        <span class="logo-mark" aria-hidden="true"></span>
+        <span class="logo-text">jasonreis<span class="dot">.dev</span></span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a href="#work">Work</a>
+        <a href="#about">About</a>
+        <a class="nav-cta" href="/djvault/">DJ Vault</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Portfolio · Engineering · Music</p>
+        <h1>
+          Jason <span class="accent">Reis</span>
+        </h1>
+        <p class="lede">
+          I build systems that feel deliberate — clean interfaces, solid
+          architecture, and tools I’d actually use. Lifelong DJ energy,
+          engineering craft.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="/djvault/">Open DJ Vault</a>
+          <a class="btn btn-ghost" href="#work">See projects</a>
+        </div>
+      </section>
+
+      <section id="work" class="section">
+        <div class="section-head">
+          <h2>Featured work</h2>
+          <p>Shipped products and experiments living on this domain.</p>
+        </div>
+
+        <article class="project-card featured">
+          <div class="project-meta">
+            <span class="pill">Featured</span>
+            <span class="pill pill-muted">React · Vite · TypeScript</span>
+          </div>
+          <h3>
+            <a href="/djvault/">DJ Vault</a>
+          </h3>
+          <p>
+            Curate DJ sets like a senior engineer ships systems — vote tracks,
+            filter by genre and era, queue a multi-track YouTube set, export
+            playlists, and find similar songs. Local-first, keyboard-first,
+            dark by default.
+          </p>
+          <ul class="feature-list">
+            <li>Persistent library & scores in localStorage</li>
+            <li>Shareable playlist links</li>
+            <li>In-vault similarity ranking</li>
+          </ul>
+          <div class="project-actions">
+            <a class="btn btn-primary" href="/djvault/">Launch app</a>
+            <a
+              class="btn btn-ghost"
+              href="https://github.com/jreis/dj-vault"
+              target="_blank"
+              rel="noreferrer"
+              >Source ↗</a
+            >
+          </div>
+        </article>
+
+        <div class="project-grid">
+          <article class="project-card muted">
+            <div class="project-meta">
+              <span class="pill pill-muted">Coming soon</span>
+            </div>
+            <h3>More projects</h3>
+            <p>
+              Case studies and tools will land here. The vault was first —
+              more builds on the way.
+            </p>
+          </article>
+          <article class="project-card muted">
+            <div class="project-meta">
+              <span class="pill pill-muted">Open source</span>
+            </div>
+            <h3>
+              <a
+                href="https://github.com/jreis"
+                target="_blank"
+                rel="noreferrer"
+                >GitHub</a
+              >
+            </h3>
+            <p>
+              Code, experiments, and portfolio repos under
+              <span class="mono">@jreis</span>.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="about" class="section about">
+        <div class="section-head">
+          <h2>About</h2>
+        </div>
+        <div class="about-grid">
+          <p>
+            I care about craft at the edges people feel: latency, clarity,
+            keyboard flow, and systems that stay maintainable after the demo.
+            Music has always been part of that — ranking a setlist is the same
+            problem as prioritizing a backlog.
+          </p>
+          <p class="muted">
+            This site is intentionally lean: a home base, a place for
+            shipping, and room to grow without a CMS.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        <span class="accent">jasonreis.dev</span>
+        · Built with care ·
+        <a href="/djvault/">DJ Vault</a>
+        ·
+        <a href="https://github.com/jreis" target="_blank" rel="noreferrer"
+          >GitHub</a
+        >
+      </p>
+    </footer>
+  </body>
+</html>
