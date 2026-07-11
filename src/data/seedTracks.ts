@@ -268,4 +268,16 @@ export const SEED_TRACKS: Track[] = [
     notes: "ReLoad deep cut — long-build closer energy",
     addedAt: "2026-01-01T00:00:18.000Z",
   },
+  {
+    id: "seed-20",
+    title: "Suspicious Minds",
+    artist: "Elvis Presley",
+    youtubeId: "WrMGGouem3c",
+    genre: "Classic Rock",
+    era: "70s",
+    year: 1969,
+    score: 12,
+    notes: "Mom’s pick — late-set heart-stopper",
+    addedAt: "2026-01-01T00:00:19.000Z",
+  },
 ]
