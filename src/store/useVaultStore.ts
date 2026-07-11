@@ -31,7 +31,7 @@ interface VaultState {
     era: Track["era"]
     year: number
     notes?: string
-  }) => void
+  }) => Track
   removeTrack: (id: string) => void
   vote: (id: string, delta: 1 | -1) => void
   updateNotes: (id: string, notes: string) => void
@@ -99,6 +99,7 @@ export const useVaultStore = create<VaultState>()(
           selectedId: track.id,
           showAddForm: false,
         }))
+        return track
       },
 
       removeTrack: (id) => {

@@ -48,7 +48,7 @@ export function WelcomeBanner({ onOpenShortcuts }: WelcomeBannerProps) {
             Welcome to the vault
           </p>
           <p className="mt-0.5 text-xs leading-relaxed text-vault-muted">
-            Vote tracks up, build a queue, find similar cuts in-library — then
+            Vote tracks up, build a queue, find similar cuts (vault + YouTube) — then
             share a set as a link. No accounts, no backend; everything lives in
             your browser.
           </p>

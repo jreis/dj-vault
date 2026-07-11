@@ -19,7 +19,7 @@ Portfolio + DJ Vault by [Jason Reis](https://jasonreis.dev).
 | **Add tracks** | Title, artist, YouTube URL/ID, genre, year (era auto-fills) |
 | **Voting** | Reddit-style up/down scores for set ranking |
 | **Discovery** | Search + genre chips + **similar tracks** (genre/era/notes) |
-| **Similar** | In-vault recommendations from any track; YouTube “find more” links |
+| **Similar** | In-vault rank + **YouTube discovery** (Data API via CF Function); one-click add |
 | **Playback** | YouTube embed + reorderable queue + continuous multi-track playlist |
 | **Export** | Full library / playlist JSON, or copy a shareable URL |
 | **Import** | JSON merge/replace; open a shared link and merge/replace |
@@ -67,14 +67,16 @@ src/
   components/   # Header, FilterBar, TrackTable, Player, AddTrackForm, Toolbar, SimilarTracks
   data/         # Seed track catalog
   hooks/        # Keyboard navigation
-  lib/          # YouTube helpers, filter/sort, share-link, similarity
+  lib/          # YouTube helpers, filter/sort, share-link, similarity, discover client
   store/        # Zustand + persist (localStorage)
   types.ts      # Shared domain types
+functions/      # Cloudflare Pages Functions (YouTube similar proxy)
 ```
 
 - **State:** one Zustand store with `persist` (`dj-vault-v1`)
 - **Base path:** Vite `base: '/djvault/'` for `https://jasonreis.dev/djvault`
-- **Media:** YouTube iframe only (no API key); queue IDs feed the embed `playlist` param
+- **Media:** YouTube iframe for playback; optional **YouTube Data API** key (server-side only) for Similar → “New on YouTube”
+- **API:** Cloudflare Pages Function `GET /api/youtube/similar` proxies search; secret `YOUTUBE_API_KEY`
 - **Sharing:** compact Base64URL payload in the URL hash (`#share=…`)
 
 ### Data model
@@ -136,6 +138,24 @@ git push -u origin main
 4. **Save and Deploy**
 
 You’ll get a URL like `https://dj-vault-xxxx.pages.dev` — open **`…pages.dev/djvault/`**.
+
+### 2b. YouTube discovery (Similar → New on YouTube)
+
+1. Create a [YouTube Data API v3](https://console.cloud.google.com/apis/library/youtube.googleapis.com) key (Google Cloud → enable YouTube Data API v3 → Credentials → API key). Restrict the key by HTTP referrer or IP if you can.
+2. Cloudflare Pages project → **Settings** → **Environment variables** → add **`YOUTUBE_API_KEY`** for **Production** and **Preview**, mark as **Encrypt** / secret.
+3. Redeploy so Functions pick up the secret.
+
+Locally:
+
+```bash
+# .env.local (gitignored by Vite convention — do not commit)
+echo 'YOUTUBE_API_KEY=your_key_here' >> .env.local
+npm run dev
+```
+
+Without a key, Similar still ranks the vault and shows YouTube search links; discovery returns a clear “not configured” message.
+
+**Quota note:** each Similar open costs one Search.list (~100 units). Free tier is 10,000 units/day ≈ 100 opens/day. Responses are cached ~30 minutes at the edge.
 
 ### 3. Attach jasonreis.dev
 
