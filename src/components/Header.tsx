@@ -15,6 +15,13 @@ export function Header({
   const toggleDarkMode = useVaultStore((s) => s.toggleDarkMode)
   const setShowAddForm = useVaultStore((s) => s.setShowAddForm)
   const showAddForm = useVaultStore((s) => s.showAddForm)
+  const setMode = useVaultStore((s) => s.setMode)
+  const toggleSetMode = useVaultStore((s) => s.toggleSetMode)
+  const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
+  const queue = useVaultStore((s) => s.queue)
+
+  const canOpenSet =
+    Boolean(nowPlayingId) || queue.length > 0
 
   return (
     <header className="sticky top-0 z-40 border-b border-vault-border bg-vault-surface/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
@@ -54,6 +61,23 @@ export function Header({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <button
+            type="button"
+            onClick={toggleSetMode}
+            disabled={!canOpenSet && !setMode}
+            className={`hidden min-h-9 items-center justify-center rounded-lg border px-2.5 py-1.5 text-xs font-medium transition sm:inline-flex ${
+              setMode
+                ? "border-vault-amber bg-vault-amber/15 text-vault-amber"
+                : "border-vault-border bg-vault-elevated text-vault-muted hover:border-vault-amber/50 hover:text-vault-amber disabled:cursor-not-allowed disabled:opacity-40"
+            }`}
+            aria-label={setMode ? "Exit set mode" : "Open set mode"}
+            title="Set mode (f)"
+          >
+            Set mode
+            <kbd className="ml-1.5 hidden rounded border border-current/20 px-1 font-mono text-[10px] opacity-70 lg:inline">
+              f
+            </kbd>
+          </button>
           <button
             type="button"
             onClick={onOpenShortcuts}

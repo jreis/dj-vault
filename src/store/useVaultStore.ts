@@ -19,6 +19,8 @@ interface VaultState {
   filters: Filters
   darkMode: boolean
   showAddForm: boolean
+  /** Fullscreen live-set view for demos and gigs. */
+  setMode: boolean
   /** When set, SimilarTracks panel is open for this track id. */
   similarToId: string | null
 
@@ -58,6 +60,8 @@ interface VaultState {
   clearFilters: () => void
   setShowAddForm: (open: boolean) => void
   setSimilarTo: (id: string | null) => void
+  setSetMode: (open: boolean) => void
+  toggleSetMode: () => void
   toggleDarkMode: () => void
 }
 
@@ -79,6 +83,7 @@ export const useVaultStore = create<VaultState>()(
       filters: defaultFilters,
       darkMode: true,
       showAddForm: false,
+      setMode: false,
       similarToId: null,
 
       addTrack: (input) => {
@@ -160,7 +165,7 @@ export const useVaultStore = create<VaultState>()(
       },
 
       play: (id) => set({ nowPlayingId: id, selectedId: id }),
-      stop: () => set({ nowPlayingId: null }),
+      stop: () => set({ nowPlayingId: null, setMode: false }),
 
       enqueue: (id) => {
         set((s) => (s.queue.includes(id) ? s : { queue: [...s.queue, id] }))
@@ -202,7 +207,13 @@ export const useVaultStore = create<VaultState>()(
       playSet: (ids) => {
         if (ids.length === 0) return
         const [first, ...rest] = ids
-        set({ nowPlayingId: first, selectedId: first, queue: rest })
+        set({
+          nowPlayingId: first,
+          selectedId: first,
+          queue: rest,
+          // Multi-track sets open the live view — best demo moment.
+          setMode: ids.length > 1,
+        })
       },
 
       playNext: () => {
@@ -264,6 +275,10 @@ export const useVaultStore = create<VaultState>()(
       setShowAddForm: (open) => set({ showAddForm: open }),
 
       setSimilarTo: (id) => set({ similarToId: id }),
+
+      setSetMode: (open) => set({ setMode: open }),
+
+      toggleSetMode: () => set((s) => ({ setMode: !s.setMode })),
 
       toggleDarkMode: () => {
         set((s) => {

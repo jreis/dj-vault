@@ -34,6 +34,7 @@ export function WelcomeBanner({ onOpenShortcuts }: WelcomeBannerProps) {
       .sort((a, b) => b.score - a.score)
       .slice(0, 5)
       .map((t) => t.id)
+    // playSet opens Set Mode for multi-track sets automatically.
     if (top.length > 0) playSet(top)
     dismiss()
   }
@@ -48,9 +49,13 @@ export function WelcomeBanner({ onOpenShortcuts }: WelcomeBannerProps) {
             Welcome to the vault
           </p>
           <p className="mt-0.5 text-xs leading-relaxed text-vault-muted">
-            Vote tracks up, build a queue, find similar cuts (vault + YouTube) — then
-            share a set as a link. No accounts, no backend; everything lives in
-            your browser.
+            Vote tracks up, build a queue, find similar cuts (vault + YouTube),
+            then hit{" "}
+            <kbd className="rounded border border-vault-border px-1 font-mono text-[10px]">
+              f
+            </kbd>{" "}
+            for Set Mode — a live fullscreen view. Share sets as links. No
+            accounts; everything lives in your browser.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -59,7 +64,7 @@ export function WelcomeBanner({ onOpenShortcuts }: WelcomeBannerProps) {
             onClick={playDemoSet}
             className="min-h-9 rounded-lg bg-vault-amber px-3 py-1.5 text-xs font-medium text-stone-950 hover:bg-amber-400"
           >
-            Play top 5 set
+            Play top 5 live set
           </button>
           <button
             type="button"

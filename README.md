@@ -21,6 +21,7 @@ Portfolio + DJ Vault by [Jason Reis](https://jasonreis.dev).
 | **Discovery** | Search + genre chips + **similar tracks** (genre/era/notes) |
 | **Similar** | In-vault rank + **YouTube discovery** (Data API via CF Function); one-click add |
 | **Playback** | YouTube embed + reorderable queue + continuous multi-track playlist |
+| **Set Mode** | Fullscreen live-set view — big now-playing, up-next, score badges (`f`) |
 | **Export** | Full library / playlist JSON, or copy a shareable URL |
 | **Import** | JSON merge/replace; open a shared link and merge/replace |
 | **Persistence** | Tracks, scores, queue, current track → `localStorage` |
@@ -56,9 +57,10 @@ npm run lint     # oxlint
 | `q` | Add selected to queue |
 | `s` | Find similar tracks (selected or now playing) |
 | `n` / `p` | Next / previous |
+| `f` | Toggle **Set Mode** (fullscreen live set) |
 | `a` | Open add-track form |
 | `?` | Shortcut help |
-| `Esc` | Close similar panel / blur inputs |
+| `Esc` | Exit set mode / close similar panel / blur inputs |
 
 ## Architecture
 
@@ -190,7 +192,7 @@ Cloudflare still serves real files under `/djvault/assets/` first; the rule only
 - **Problem:** Rank tracks for DJ sets without a spreadsheet or SaaS lock-in.
 - **Approach:** Local-first SPA; YouTube for media; pure filter/sort for snappy UX.
 - **Trade-offs:** Single-user by design; embeds depend on YouTube availability; huge libraries may need JSON export instead of share URLs.
-- **Senior touches:** Typed domain model, keyboard-first UX, shareable set links, accessible focus rings, mobile cards + desktop table, subdirectory-ready deploy.
+- **Senior touches:** Typed domain model, keyboard-first UX, Set Mode for live demos/gigs, shareable set links, accessible focus rings, mobile cards + desktop table, subdirectory-ready deploy.
 
 ## Roadmap
 

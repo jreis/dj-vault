@@ -220,6 +220,10 @@ export function Toolbar() {
           </kbd>{" "}
           queue ·{" "}
           <kbd className="rounded border border-vault-border px-1 font-mono">
+            f
+          </kbd>{" "}
+          set mode ·{" "}
+          <kbd className="rounded border border-vault-border px-1 font-mono">
             ?
           </kbd>{" "}
           help

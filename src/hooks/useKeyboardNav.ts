@@ -43,7 +43,22 @@ export function useKeyboardNav(
 
       const store = useVaultStore.getState()
 
+      // Set mode: Esc exits first; f toggles. Other vault shortcuts still work.
+      if (store.setMode && e.key === "Escape") {
+        e.preventDefault()
+        store.setSetMode(false)
+        return
+      }
+
       switch (e.key) {
+        case "f":
+        case "F": {
+          if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+            e.preventDefault()
+            store.toggleSetMode()
+          }
+          break
+        }
         case "/": {
           e.preventDefault()
           document.getElementById("vault-search")?.focus()
@@ -142,6 +157,9 @@ export function useKeyboardNav(
           } else if (store.showAddForm) {
             e.preventDefault()
             store.setShowAddForm(false)
+          } else if (store.setMode) {
+            e.preventDefault()
+            store.setSetMode(false)
           }
           break
         }

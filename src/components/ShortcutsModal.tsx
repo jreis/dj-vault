@@ -11,8 +11,9 @@ const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: "q", action: "Add selected to queue" },
   { keys: "s", action: "Similar tracks (selected or playing)" },
   { keys: "n / p", action: "Next / previous track" },
+  { keys: "f", action: "Toggle set mode (live fullscreen)" },
   { keys: "a", action: "Open add-track form" },
-  { keys: "Esc", action: "Close similar panel / blur inputs" },
+  { keys: "Esc", action: "Exit set mode / close panels / blur" },
   { keys: "?", action: "This help" },
 ]
 
