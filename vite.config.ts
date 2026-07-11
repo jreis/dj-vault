@@ -4,7 +4,10 @@ import tailwindcss from "@tailwindcss/vite"
 import { handleSimilarSearch } from "./scripts/youtube-similar-handler.ts"
 
 /** Dev-only /api/youtube/similar so local SPA can discover without wrangler. */
-function youtubeSimilarDevApi(apiKey: string | undefined): Plugin {
+function youtubeSimilarDevApi(env: {
+  YOUTUBE_API_KEY?: string
+  YOUTUBE_DISCOVERY_ENABLED?: string
+}): Plugin {
   return {
     name: "youtube-similar-dev-api",
     configureServer(server) {
@@ -22,10 +25,7 @@ function youtubeSimilarDevApi(apiKey: string | undefined): Plugin {
         try {
           const host = req.headers.host ?? "localhost"
           const url = new URL(req.url, `http://${host}`)
-          const result = await handleSimilarSearch(
-            url.searchParams,
-            apiKey,
-          )
+          const result = await handleSimilarSearch(url.searchParams, env)
           res.statusCode = result.status
           res.setHeader("Content-Type", "application/json; charset=utf-8")
           if (result.cacheControl) {
@@ -56,7 +56,10 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
-      youtubeSimilarDevApi(env.YOUTUBE_API_KEY),
+      youtubeSimilarDevApi({
+        YOUTUBE_API_KEY: env.YOUTUBE_API_KEY,
+        YOUTUBE_DISCOVERY_ENABLED: env.YOUTUBE_DISCOVERY_ENABLED,
+      }),
     ],
     build: {
       outDir: "dist/djvault",

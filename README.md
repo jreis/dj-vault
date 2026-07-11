@@ -157,7 +157,15 @@ npm run dev
 
 Without a key, Similar still ranks the vault and shows YouTube search links; discovery returns a clear “not configured” message.
 
-**Quota note:** each Similar open costs one Search.list (~100 units). Free tier is 10,000 units/day ≈ 100 opens/day. Responses are cached ~30 minutes at the edge.
+**Quota / “don’t go broke” guards:**
+
+| Guard | What it does |
+| --- | --- |
+| Response cache | Successful searches cached ~30 min at the edge (same track → no extra units) |
+| Auto circuit breaker | On `quotaExceeded` / daily limit, server **stops calling Google** until midnight Pacific; client also skips further requests for the session |
+| Kill switch | Set **`YOUTUBE_DISCOVERY_ENABLED=false`** (CF env or `.env.local`) to hard-disable all Data API calls without removing the key |
+
+Each Similar open costs one `Search.list` (~100 units). Free tier is **10,000 units/day ≈ 100 opens/day**. Prefer the kill switch if you want discovery off permanently; the breaker handles “ran out today.”
 
 ### 3. Attach jasonreis.dev
 

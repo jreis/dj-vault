@@ -4,7 +4,9 @@ name = "dj-vault"
 compatibility_date = "2025-01-01"
 pages_build_output_dir = "dist"
 
-# Secrets (do not put API keys in this file):
-#   Cloudflare Dashboard → Workers & Pages → project → Settings →
-#   Environment variables → YOUTUBE_API_KEY (Encrypt) for Production + Preview
-# Local dev: .env.local with YOUTUBE_API_KEY=... (picked up by Vite middleware)
+# Secrets / env (do not put API keys in this file):
+#   Cloudflare Dashboard → Workers & Pages → project → Settings → Environment variables
+#     YOUTUBE_API_KEY              — Encrypt; Production + Preview
+#     YOUTUBE_DISCOVERY_ENABLED    — optional plain var; set false/0/off to hard-disable
+#                                    YouTube Data API calls (keeps free quota / billing safe)
+# Local dev: .env.local with YOUTUBE_API_KEY=... (and optional YOUTUBE_DISCOVERY_ENABLED=false)

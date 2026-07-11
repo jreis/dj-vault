@@ -301,6 +301,20 @@ export function SimilarTracks() {
                 </code>{" "}
                 for local dev). External search links still work above.
               </p>
+            ) : discoverCode === "quota_exceeded" ? (
+              <p className="mt-1 text-xs text-vault-muted/70">
+                Free YouTube API quota is used up for today — discovery is
+                paused so you don&apos;t get billed. Vault matches and the
+                YouTube search links above still work. Resets midnight Pacific.
+              </p>
+            ) : discoverCode === "disabled" ? (
+              <p className="mt-1 text-xs text-vault-muted/70">
+                Discovery is turned off via{" "}
+                <code className="rounded bg-vault-elevated px-1 py-0.5 text-[10px]">
+                  YOUTUBE_DISCOVERY_ENABLED
+                </code>
+                . Vault matches and external search links still work.
+              </p>
             ) : (
               <p className="mt-1 text-xs text-vault-muted/70">
                 Use the YouTube links above, or try again later.

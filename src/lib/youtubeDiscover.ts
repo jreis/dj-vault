@@ -9,6 +9,8 @@ export interface DiscoverVideo {
 
 export type DiscoverErrorCode =
   | "missing_key"
+  | "disabled"
+  | "quota_exceeded"
   | "upstream"
   | "bad_request"
   | "network"
@@ -27,6 +29,44 @@ interface DiscoverApiResponse {
   query?: string
   error?: string
   code?: DiscoverErrorCode
+}
+
+/** sessionStorage key: epoch ms until client should stop hitting the discover API. */
+const CLIENT_BLOCK_UNTIL_KEY = "dj-vault-yt-discover-blocked-until"
+
+function clientBlockUntil(): number {
+  try {
+    const raw = sessionStorage.getItem(CLIENT_BLOCK_UNTIL_KEY)
+    if (!raw) return 0
+    const n = Number(raw)
+    return Number.isFinite(n) ? n : 0
+  } catch {
+    return 0
+  }
+}
+
+/** Remember not to call the discover API until `untilMs` (session-scoped). */
+export function blockDiscoverClientUntil(untilMs: number): void {
+  try {
+    sessionStorage.setItem(CLIENT_BLOCK_UNTIL_KEY, String(untilMs))
+  } catch {
+    // private mode / quota — ignore
+  }
+}
+
+/**
+ * Pause client-side discover calls until ~midnight Pacific (quota reset)
+ * or a few hours as a safe default.
+ */
+export function blockDiscoverForQuotaDay(): void {
+  // ~16h is enough to cover “rest of today PT” without needing TZ math in the browser.
+  // Server already circuits until true midnight Pacific.
+  const until = Date.now() + 16 * 60 * 60 * 1000
+  blockDiscoverClientUntil(until)
+}
+
+export function isDiscoverClientBlocked(): boolean {
+  return Date.now() < clientBlockUntil()
 }
 
 /** Strip common YouTube title noise for vault metadata. */
@@ -76,12 +116,21 @@ export function guessTitleArtist(
 /**
  * Fetch similar videos via the Cloudflare Pages Function (or Vite dev proxy).
  * Absolute path so the SPA under /djvault/ still hits site-root /api.
+ *
+ * Skips the network call when the client knows discovery is disabled / out of quota.
  */
 export async function fetchSimilarVideos(
   seed: Track,
   library: Track[],
   signal?: AbortSignal,
 ): Promise<{ items: DiscoverVideo[]; query: string }> {
+  if (isDiscoverClientBlocked()) {
+    throw new DiscoverError(
+      "YouTube discovery is paused (quota or disabled). Try again after the daily reset, or use the search links.",
+      "quota_exceeded",
+    )
+  }
+
   const exclude = new Set<string>([seed.youtubeId])
   for (const t of library) {
     if (t.youtubeId) exclude.add(t.youtubeId)
@@ -112,6 +161,9 @@ export async function fetchSimilarVideos(
 
   if (!res.ok) {
     const code = data.code ?? "upstream"
+    if (code === "quota_exceeded" || code === "disabled") {
+      blockDiscoverForQuotaDay()
+    }
     throw new DiscoverError(
       data.error ?? `Discovery failed (${res.status})`,
       code,
