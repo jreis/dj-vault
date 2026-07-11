@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Header } from "./components/Header"
 import { FilterBar } from "./components/FilterBar"
 import { TrackTable } from "./components/TrackTable"
@@ -6,6 +6,9 @@ import { Player } from "./components/Player"
 import { AddTrackForm } from "./components/AddTrackForm"
 import { Toolbar } from "./components/Toolbar"
 import { SimilarTracks } from "./components/SimilarTracks"
+import { WelcomeBanner } from "./components/WelcomeBanner"
+import { ShortcutsModal } from "./components/ShortcutsModal"
+import { Toast } from "./components/Toast"
 import { filterAndSortTracks } from "./lib/filterTracks"
 import {
   clearShareHash,
@@ -22,6 +25,10 @@ export default function App() {
   const importTracks = useVaultStore((s) => s.importTracks)
 
   const [pendingShare, setPendingShare] = useState<Track[] | null>(null)
+  const [showShortcuts, setShowShortcuts] = useState(false)
+
+  const openShortcuts = useCallback(() => setShowShortcuts(true), [])
+  const closeShortcuts = useCallback(() => setShowShortcuts(false), [])
 
   useEffect(() => {
     const shared = readShareFromLocation()
@@ -34,7 +41,11 @@ export default function App() {
   )
   const visibleIds = useMemo(() => visible.map((t) => t.id), [visible])
 
-  useKeyboardNav(visibleIds)
+  useKeyboardNav(visibleIds, {
+    onOpenShortcuts: openShortcuts,
+    onCloseOverlays: closeShortcuts,
+    shortcutsOpen: showShortcuts,
+  })
 
   function acceptShare(mode: "merge" | "replace") {
     if (!pendingShare) return
@@ -50,7 +61,13 @@ export default function App() {
 
   return (
     <div className="flex min-h-svh flex-col pb-[env(safe-area-inset-bottom)]">
-      <Header trackCount={tracks.length} visibleCount={visible.length} />
+      <Header
+        trackCount={tracks.length}
+        visibleCount={visible.length}
+        onOpenShortcuts={openShortcuts}
+      />
+
+      <WelcomeBanner onOpenShortcuts={openShortcuts} />
 
       {pendingShare && (
         <div
@@ -100,7 +117,7 @@ export default function App() {
         </div>
 
         {showAddForm && (
-          <div className="mb-5">
+          <div className="mb-5 animate-fade-in">
             <AddTrackForm />
           </div>
         )}
@@ -129,6 +146,8 @@ export default function App() {
         <p className="leading-relaxed">
           <span className="text-vault-amber">DJ Vault</span>
           {" · "}
+          Curate sets like shipping systems
+          {" · "}
           By{" "}
           <a
             href="https://jasonreis.dev"
@@ -140,16 +159,24 @@ export default function App() {
           </a>
           <span className="hidden sm:inline">
             {" · "}
-            Votes & library persist in localStorage
+            Local-first · no accounts
           </span>
           {" · "}
-          Press{" "}
-          <kbd className="rounded border border-vault-border px-1 font-mono">
-            ?
-          </kbd>{" "}
-          for shortcuts
+          <button
+            type="button"
+            onClick={openShortcuts}
+            className="underline decoration-vault-border underline-offset-2 hover:text-vault-amber"
+          >
+            Shortcuts{" "}
+            <kbd className="rounded border border-vault-border px-1 font-mono">
+              ?
+            </kbd>
+          </button>
         </p>
       </footer>
+
+      <ShortcutsModal open={showShortcuts} onClose={closeShortcuts} />
+      <Toast />
     </div>
   )
 }

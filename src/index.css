@@ -89,12 +89,71 @@ body::before {
 }
 
 /* Table / card selection */
+.track-row {
+  transition: background-color 0.12s ease;
+}
+
 .track-row[data-selected="true"] {
   background: color-mix(in srgb, var(--color-vault-amber) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-vault-amber);
 }
 
 .track-row:hover {
   background: color-mix(in srgb, var(--color-vault-elevated) 80%, transparent);
+}
+
+/* Now-playing equalizer bars on thumbs */
+.now-playing-eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.now-playing-eq i {
+  display: block;
+  width: 3px;
+  border-radius: 1px;
+  background: var(--color-vault-amber);
+  animation: eq-bounce 0.85s ease-in-out infinite;
+}
+
+.now-playing-eq i:nth-child(1) {
+  height: 40%;
+  animation-delay: 0s;
+}
+.now-playing-eq i:nth-child(2) {
+  height: 100%;
+  animation-delay: 0.15s;
+}
+.now-playing-eq i:nth-child(3) {
+  height: 65%;
+  animation-delay: 0.3s;
+}
+
+@keyframes eq-bounce {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Touch targets + mobile spacing */

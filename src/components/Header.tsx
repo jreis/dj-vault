@@ -3,9 +3,14 @@ import { useVaultStore } from "../store/useVaultStore"
 interface HeaderProps {
   trackCount: number
   visibleCount: number
+  onOpenShortcuts: () => void
 }
 
-export function Header({ trackCount, visibleCount }: HeaderProps) {
+export function Header({
+  trackCount,
+  visibleCount,
+  onOpenShortcuts,
+}: HeaderProps) {
   const darkMode = useVaultStore((s) => s.darkMode)
   const toggleDarkMode = useVaultStore((s) => s.toggleDarkMode)
   const setShowAddForm = useVaultStore((s) => s.setShowAddForm)
@@ -38,7 +43,7 @@ export function Header({ trackCount, visibleCount }: HeaderProps) {
             </h1>
             <p className="truncate text-[11px] text-vault-muted sm:text-xs">
               <span className="hidden sm:inline">
-                Curate · Vote · Queue · Play
+                Curate sets like shipping systems
                 <span className="mx-1.5 text-vault-border">·</span>
               </span>
               {visibleCount === trackCount
@@ -49,6 +54,15 @@ export function Header({ trackCount, visibleCount }: HeaderProps) {
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <button
+            type="button"
+            onClick={onOpenShortcuts}
+            className="hidden min-h-9 min-w-9 items-center justify-center rounded-lg border border-vault-border bg-vault-elevated text-sm text-vault-muted transition hover:border-vault-amber/50 hover:text-vault-text sm:inline-flex"
+            aria-label="Keyboard shortcuts"
+            title="Keyboard shortcuts (?)"
+          >
+            ?
+          </button>
           <button
             type="button"
             onClick={() => setShowAddForm(!showAddForm)}

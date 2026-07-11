@@ -21,10 +21,29 @@ export function TrackTable({ tracks }: TrackTableProps) {
   if (tracks.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-vault-border bg-vault-surface px-6 py-16 text-center">
-        <p className="text-vault-muted">No tracks match your filters.</p>
-        <p className="mt-1 text-sm text-vault-muted/70">
-          Clear search or add a new track to the vault.
+        <p className="text-lg text-vault-amber/40" aria-hidden>
+          ⌕
         </p>
+        <p className="mt-2 font-medium text-vault-text">No tracks match</p>
+        <p className="mt-1 text-sm text-vault-muted">
+          Clear search or filters, or add a track with a YouTube link.
+        </p>
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => useVaultStore.getState().clearFilters()}
+            className="rounded-lg border border-vault-border px-3 py-1.5 text-xs text-vault-muted hover:border-vault-amber hover:text-vault-amber"
+          >
+            Clear filters
+          </button>
+          <button
+            type="button"
+            onClick={() => useVaultStore.getState().setShowAddForm(true)}
+            className="rounded-lg bg-vault-amber px-3 py-1.5 text-xs font-medium text-stone-950 hover:bg-amber-400"
+          >
+            + Add track
+          </button>
+        </div>
       </div>
     )
   }
@@ -94,7 +113,11 @@ export function TrackTable({ tracks }: TrackTableProps) {
                   />
                   {playing && (
                     <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-vault-amber">
-                      ▶
+                      <span className="now-playing-eq" aria-hidden>
+                        <i />
+                        <i />
+                        <i />
+                      </span>
                     </span>
                   )}
                 </div>
@@ -278,7 +301,11 @@ export function TrackTable({ tracks }: TrackTableProps) {
                           />
                           {playing && (
                             <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-vault-amber">
-                              ▶
+                              <span className="now-playing-eq" aria-hidden>
+                                <i />
+                                <i />
+                                <i />
+                              </span>
                             </span>
                           )}
                         </div>

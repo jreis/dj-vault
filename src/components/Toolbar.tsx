@@ -6,6 +6,7 @@ import {
   isShareUrlTooLong,
 } from "../lib/shareLink"
 import { useVaultStore } from "../store/useVaultStore"
+import { useToastStore } from "../store/useToastStore"
 
 export function Toolbar() {
   const tracks = useVaultStore((s) => s.tracks)
@@ -13,8 +14,9 @@ export function Toolbar() {
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const resetToSeed = useVaultStore((s) => s.resetToSeed)
   const importTracks = useVaultStore((s) => s.importTracks)
+  const showToast = useToastStore((s) => s.show)
   const fileRef = useRef<HTMLInputElement>(null)
-  const [shareMsg, setShareMsg] = useState<string | null>(null)
+  const [pendingImport, setPendingImport] = useState<Track[] | null>(null)
 
   function exportJson(source: "library" | "queue" | "set") {
     let list = tracks
@@ -48,10 +50,10 @@ export function Toolbar() {
     a.download = `dj-vault-${label}-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
+    showToast(`Exported ${list.length} track${list.length === 1 ? "" : "s"}`, "success")
   }
 
   async function copyShareLink(source: "library" | "queue") {
-    setShareMsg(null)
     let list = tracks
     if (source === "queue") {
       const ids = [
@@ -62,28 +64,29 @@ export function Toolbar() {
         .map((id) => tracks.find((t) => t.id === id))
         .filter((t): t is Track => Boolean(t))
       if (list.length === 0) {
-        setShareMsg("Queue is empty — add tracks first.")
+        showToast("Queue is empty — add tracks first.", "error")
         return
       }
     }
 
     const url = buildShareUrl(list)
     if (isShareUrlTooLong(url)) {
-      setShareMsg(
-        "Link too long for a URL — use Export JSON instead for large libraries.",
+      showToast(
+        "Link too long — use Export JSON for large libraries.",
+        "error",
       )
       return
     }
 
     try {
       await navigator.clipboard.writeText(url)
-      setShareMsg(
-        `Copied share link (${list.length} track${list.length === 1 ? "" : "s"}).`,
+      showToast(
+        `Share link copied (${list.length} track${list.length === 1 ? "" : "s"})`,
+        "success",
       )
     } catch {
-      // Fallback: prompt for manual copy
       window.prompt("Copy this share link:", url)
-      setShareMsg("Share link ready — paste it anywhere.")
+      showToast("Share link ready — paste it anywhere.", "info")
     }
   }
 
@@ -100,23 +103,28 @@ export function Toolbar() {
             ? data.tracks
             : null
         if (!list || list.length === 0) {
-          alert("No tracks found in that file.")
+          showToast("No tracks found in that file.", "error")
           return
         }
-        const choice = window.prompt(
-          `Import ${list.length} tracks.\nType "merge" or "replace":`,
-          "merge",
-        )
-        if (choice === null) return
-        const mode =
-          choice.trim().toLowerCase() === "replace" ? "replace" : "merge"
-        importTracks(list, mode)
-        clearShareHash()
+        setPendingImport(list)
       } catch {
-        alert("Could not parse JSON.")
+        showToast("Could not parse JSON.", "error")
       }
     }
     reader.readAsText(file)
+  }
+
+  function confirmImport(mode: "merge" | "replace") {
+    if (!pendingImport) return
+    importTracks(pendingImport, mode)
+    clearShareHash()
+    showToast(
+      mode === "merge"
+        ? `Merged ${pendingImport.length} track(s)`
+        : `Replaced library with ${pendingImport.length} track(s)`,
+      "success",
+    )
+    setPendingImport(null)
   }
 
   return (
@@ -186,6 +194,7 @@ export function Toolbar() {
             ) {
               resetToSeed()
               clearShareHash()
+              showToast("Vault reset to seed library", "info")
             }
           }}
           className="rounded-lg border border-vault-border px-2.5 py-1.5 text-vault-muted hover:border-vault-red hover:text-vault-red"
@@ -217,10 +226,58 @@ export function Toolbar() {
         </span>
       </div>
 
-      {shareMsg && (
-        <p className="text-xs text-vault-blue" role="status">
-          {shareMsg}
-        </p>
+      {pendingImport && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="import-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            aria-label="Cancel import"
+            onClick={() => setPendingImport(null)}
+          />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl border border-vault-border bg-vault-surface p-5 shadow-2xl">
+            <h2
+              id="import-title"
+              className="text-sm font-semibold text-vault-text"
+            >
+              Import {pendingImport.length} track
+              {pendingImport.length === 1 ? "" : "s"}?
+            </h2>
+            <p className="mt-2 text-xs leading-relaxed text-vault-muted">
+              <strong className="text-vault-text">Merge</strong> keeps your
+              library and adds new IDs.{" "}
+              <strong className="text-vault-text">Replace</strong> wipes the
+              current vault first.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => confirmImport("merge")}
+                className="rounded-lg bg-vault-amber px-3 py-2 text-xs font-medium text-stone-950 hover:bg-amber-400"
+              >
+                Merge
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmImport("replace")}
+                className="rounded-lg border border-vault-border px-3 py-2 text-xs text-vault-text hover:border-vault-amber"
+              >
+                Replace library
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingImport(null)}
+                className="rounded-lg border border-vault-border px-3 py-2 text-xs text-vault-muted hover:text-vault-red"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

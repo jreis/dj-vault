@@ -1,8 +1,18 @@
 import { useEffect } from "react"
 import { useVaultStore } from "../store/useVaultStore"
+import { useToastStore } from "../store/useToastStore"
+
+interface KeyboardNavOptions {
+  onOpenShortcuts: () => void
+  onCloseOverlays: () => void
+  shortcutsOpen: boolean
+}
 
 /** Global keyboard shortcuts when not typing in an input. */
-export function useKeyboardNav(visibleIds: string[]) {
+export function useKeyboardNav(
+  visibleIds: string[],
+  { onOpenShortcuts, onCloseOverlays, shortcutsOpen }: KeyboardNavOptions,
+) {
   useEffect(() => {
     function isTypingTarget(el: EventTarget | null): boolean {
       if (!(el instanceof HTMLElement)) return false
@@ -19,6 +29,14 @@ export function useKeyboardNav(visibleIds: string[]) {
       if (isTypingTarget(e.target)) {
         if (e.key === "Escape") {
           ;(e.target as HTMLElement).blur()
+        }
+        return
+      }
+
+      if (shortcutsOpen) {
+        if (e.key === "Escape" || e.key === "?") {
+          e.preventDefault()
+          onCloseOverlays()
         }
         return
       }
@@ -69,7 +87,20 @@ export function useKeyboardNav(visibleIds: string[]) {
         case "q": {
           if (store.selectedId) {
             e.preventDefault()
-            store.enqueue(store.selectedId)
+            const id = store.selectedId
+            const already = store.queue.includes(id)
+            store.enqueue(id)
+            if (!already) {
+              const t = store.tracks.find((x) => x.id === id)
+              useToastStore
+                .getState()
+                .show(
+                  t
+                    ? `Queued “${t.title}”`
+                    : "Added to queue",
+                  "success",
+                )
+            }
           }
           break
         }
@@ -96,7 +127,6 @@ export function useKeyboardNav(visibleIds: string[]) {
             const id = store.selectedId ?? store.nowPlayingId
             if (!id) break
             store.setSimilarTo(store.similarToId === id ? null : id)
-            // Scroll panel into view after open
             queueMicrotask(() => {
               document
                 .querySelector('[aria-label^="Tracks similar to"]')
@@ -109,26 +139,15 @@ export function useKeyboardNav(visibleIds: string[]) {
           if (store.similarToId) {
             e.preventDefault()
             store.setSimilarTo(null)
+          } else if (store.showAddForm) {
+            e.preventDefault()
+            store.setShowAddForm(false)
           }
           break
         }
         case "?": {
           e.preventDefault()
-          alert(
-            [
-              "Keyboard shortcuts",
-              "",
-              "/     focus search",
-              "j/k   move selection (or ↓/↑)",
-              "Enter play selected",
-              "u/d   upvote / downvote",
-              "q     add to queue",
-              "s     similar tracks for selected",
-              "n/p   next / previous track",
-              "a     open add-track form",
-              "Esc   close similar / blur inputs",
-            ].join("\n"),
-          )
+          onOpenShortcuts()
           break
         }
       }
@@ -137,7 +156,6 @@ export function useKeyboardNav(visibleIds: string[]) {
     function scrollSelectedIntoView() {
       const id = useVaultStore.getState().selectedId
       if (!id) return
-      // Prefer the visible layout (mobile cards or desktop table)
       const nodes = document.querySelectorAll(
         `[data-track-id="${CSS.escape(id)}"]`,
       )
@@ -151,5 +169,5 @@ export function useKeyboardNav(visibleIds: string[]) {
 
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [visibleIds])
+  }, [visibleIds, onOpenShortcuts, onCloseOverlays, shortcutsOpen])
 }

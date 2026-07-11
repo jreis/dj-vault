@@ -267,32 +267,51 @@ export function Player() {
           </>
         ) : (
           <div className="flex aspect-video flex-col items-center justify-center gap-2 bg-vault-elevated/50 p-6 text-center">
-            <div className="text-3xl opacity-40" aria-hidden>
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-full border border-vault-amber/30 text-2xl text-vault-amber/50"
+              aria-hidden
+            >
               ◎
             </div>
-            <p className="text-sm text-vault-muted">Nothing playing</p>
-            <p className="text-xs text-vault-muted/70">
+            <p className="text-sm font-medium text-vault-text">Nothing playing</p>
+            <p className="max-w-[16rem] text-xs leading-relaxed text-vault-muted/80">
               Select a track and press{" "}
               <kbd className="rounded border border-vault-border px-1 font-mono">
                 Enter
-              </kbd>{" "}
-              or double-click
+              </kbd>
+              , double-click a row, or start a set below.
             </p>
-            {queueTracks.length > 0 && (
-              <button
-                type="button"
-                onClick={() =>
-                  playSet(
-                    queueTracks
-                      .map((t) => t?.id)
-                      .filter((id): id is string => Boolean(id)),
-                  )
-                }
-                className="mt-2 rounded-lg bg-vault-amber px-3 py-1.5 text-xs font-medium text-stone-950 hover:bg-amber-400"
-              >
-                Play queue ({queueTracks.length})
-              </button>
-            )}
+            <div className="mt-2 flex flex-wrap justify-center gap-2">
+              {queueTracks.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    playSet(
+                      queueTracks
+                        .map((t) => t?.id)
+                        .filter((id): id is string => Boolean(id)),
+                    )
+                  }
+                  className="rounded-lg bg-vault-amber px-3 py-1.5 text-xs font-medium text-stone-950 hover:bg-amber-400"
+                >
+                  Play queue ({queueTracks.length})
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const top = [...tracks]
+                      .sort((a, b) => b.score - a.score)
+                      .slice(0, 5)
+                      .map((t) => t.id)
+                    if (top.length) playSet(top)
+                  }}
+                  className="rounded-lg bg-vault-amber px-3 py-1.5 text-xs font-medium text-stone-950 hover:bg-amber-400"
+                >
+                  Play top 5 by score
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
