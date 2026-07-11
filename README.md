@@ -15,7 +15,7 @@ Portfolio + DJ Vault by [Jason Reis](https://jasonreis.dev).
 
 | Area | What you get |
 |------|----------------|
-| **Library** | 20 seed tracks (Metallica, Nirvana, Elvis, RATM, Tool, …) |
+| **Library** | 21 seed tracks (Metallica, Nirvana, Elvis, Ghost, RATM, Tool, …) |
 | **Add tracks** | Title, artist, YouTube URL/ID, genre, year (era auto-fills) |
 | **Voting** | Reddit-style up/down scores for set ranking |
 | **Discovery** | Search + genre chips + **similar tracks** (genre/era/notes) |

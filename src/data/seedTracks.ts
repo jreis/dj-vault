@@ -280,4 +280,16 @@ export const SEED_TRACKS: Track[] = [
     notes: "Mom’s pick — late-set heart-stopper",
     addedAt: "2026-01-01T00:00:19.000Z",
   },
+  {
+    id: "seed-21",
+    title: "Dance Macabre",
+    artist: "Ghost",
+    youtubeId: "7Gr63DiEUxw",
+    genre: "Metal",
+    era: "10s",
+    year: 2018,
+    score: 11,
+    notes: "Daughter’s pick — disco-metal sing-along",
+    addedAt: "2026-01-01T00:00:20.000Z",
+  },
 ]
