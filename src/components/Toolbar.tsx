@@ -1,15 +1,32 @@
 import { useRef, useState } from "react"
 import type { Track } from "../types"
-import {
-  buildShareUrl,
-  clearShareHash,
-  isShareUrlTooLong,
-} from "../lib/shareLink"
+import { clearShareHash } from "../lib/shareLink"
+import { createShareLink } from "../lib/shareApi"
 import { useVaultStore } from "../store/useVaultStore"
 import { useToastStore } from "../store/useToastStore"
 
+function resolveSetTracks(s: {
+  tracks: Track[]
+  guestTracks: Track[]
+  nowPlayingId: string | null
+  queue: string[]
+}): Track[] {
+  const resolve = (id: string) =>
+    s.tracks.find((t) => t.id === id) ??
+    s.guestTracks.find((t) => t.id === id)
+  const ids = [
+    ...(s.nowPlayingId ? [s.nowPlayingId] : []),
+    ...s.queue.filter((id) => id !== s.nowPlayingId),
+  ]
+  return ids
+    .map((id) => resolve(id))
+    .filter((t): t is Track => Boolean(t))
+}
+
 export function Toolbar() {
   const tracks = useVaultStore((s) => s.tracks)
+  const guestTracks = useVaultStore((s) => s.guestTracks)
+  const guestSetName = useVaultStore((s) => s.guestSetName)
   const queue = useVaultStore((s) => s.queue)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const resetToSeed = useVaultStore((s) => s.resetToSeed)
@@ -22,13 +39,12 @@ export function Toolbar() {
     let list = tracks
     let label = "library"
     if (source === "queue") {
-      const ids = [
-        ...(nowPlayingId ? [nowPlayingId] : []),
-        ...queue.filter((id) => id !== nowPlayingId),
-      ]
-      list = ids
-        .map((id) => tracks.find((t) => t.id === id))
-        .filter((t): t is Track => Boolean(t))
+      list = resolveSetTracks({
+        tracks,
+        guestTracks,
+        nowPlayingId,
+        queue,
+      })
       label = "playlist"
     } else if (source === "set") {
       list = [...tracks].sort((a, b) => b.score - a.score)
@@ -55,37 +71,37 @@ export function Toolbar() {
 
   async function copyShareLink(source: "library" | "queue") {
     let list = tracks
+    let name: string | null = null
     if (source === "queue") {
-      const ids = [
-        ...(nowPlayingId ? [nowPlayingId] : []),
-        ...queue.filter((id) => id !== nowPlayingId),
-      ]
-      list = ids
-        .map((id) => tracks.find((t) => t.id === id))
-        .filter((t): t is Track => Boolean(t))
+      list = resolveSetTracks({
+        tracks,
+        guestTracks,
+        nowPlayingId,
+        queue,
+      })
+      name = guestSetName
       if (list.length === 0) {
         showToast("Queue is empty — add tracks first.", "error")
         return
       }
     }
 
-    const url = buildShareUrl(list)
-    if (isShareUrlTooLong(url)) {
-      showToast(
-        "Link too long — use Export JSON for large libraries.",
-        "error",
-      )
+    const result = await createShareLink(list, { name })
+    if (!result.ok) {
+      showToast(result.error, "error")
       return
     }
 
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.clipboard.writeText(result.url)
       showToast(
-        `Share link copied (${list.length} track${list.length === 1 ? "" : "s"})`,
+        result.short
+          ? `Short link copied (${list.length} track${list.length === 1 ? "" : "s"})`
+          : `Share link copied (${list.length} track${list.length === 1 ? "" : "s"})`,
         "success",
       )
     } catch {
-      window.prompt("Copy this share link:", url)
+      window.prompt("Copy this share link:", result.url)
       showToast("Share link ready — paste it anywhere.", "info")
     }
   }
@@ -160,7 +176,7 @@ export function Toolbar() {
             type="button"
             onClick={() => void copyShareLink("queue")}
             className="rounded-lg border border-vault-border px-2.5 py-1.5 text-vault-muted hover:border-vault-blue hover:text-vault-blue"
-            title="Copy a URL for the current playlist"
+            title="Copy a URL for the current playlist (plays on open)"
           >
             Share playlist
           </button>
@@ -189,7 +205,7 @@ export function Toolbar() {
           onClick={() => {
             if (
               confirm(
-                "Reset vault to the 20 seed tracks? Your votes and custom tracks will be lost.",
+                "Reset vault to the 20 seed tracks? Your votes, playlists, and custom tracks will be lost.",
               )
             ) {
               resetToSeed()

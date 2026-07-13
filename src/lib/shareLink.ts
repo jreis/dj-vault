@@ -1,8 +1,10 @@
 import type { Era, Genre, Track } from "../types"
 
 /** Compact share payload — keeps URLs shorter than full Track JSON. */
-interface SharePayloadV1 {
+export interface SharePayloadV1 {
   v: 1
+  /** Optional playlist / set name. */
+  name?: string
   tracks: Array<{
     t: string
     a: string
@@ -13,6 +15,11 @@ interface SharePayloadV1 {
     s?: number
     n?: string
   }>
+}
+
+export interface ParsedShare {
+  name: string | null
+  tracks: Track[]
 }
 
 const GENRES = new Set([
@@ -48,8 +55,10 @@ function uid(): string {
   return `t_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
 
-/** Build a shareable URL that embeds the given tracks in the hash. */
-export function buildShareUrl(tracks: Track[], baseUrl = window.location.href): string {
+export function tracksToSharePayload(
+  tracks: Track[],
+  name?: string | null,
+): SharePayloadV1 {
   const payload: SharePayloadV1 = {
     v: 1,
     tracks: tracks.map((t) => ({
@@ -63,23 +72,16 @@ export function buildShareUrl(tracks: Track[], baseUrl = window.location.href): 
       ...(t.notes ? { n: t.notes } : {}),
     })),
   }
-  const encoded = toBase64Url(JSON.stringify(payload))
-  const url = new URL(baseUrl)
-  url.hash = `share=${encoded}`
-  return url.toString()
+  const trimmed = name?.trim()
+  if (trimmed) payload.name = trimmed.slice(0, 80)
+  return payload
 }
 
-export function isShareUrlTooLong(url: string, limit = 7000): boolean {
-  return url.length > limit
+export function encodeSharePayload(payload: SharePayloadV1): string {
+  return toBase64Url(JSON.stringify(payload))
 }
 
-/** Parse tracks from a share hash (`#share=…`). Returns null if missing/invalid. */
-export function parseShareHash(hash: string): Track[] | null {
-  const raw = hash.startsWith("#") ? hash.slice(1) : hash
-  if (!raw.startsWith("share=")) return null
-  const encoded = raw.slice("share=".length)
-  if (!encoded) return null
-
+export function decodeSharePayload(encoded: string): ParsedShare | null {
   try {
     const parsed = JSON.parse(fromBase64Url(encoded)) as SharePayloadV1
     if (parsed?.v !== 1 || !Array.isArray(parsed.tracks) || parsed.tracks.length === 0) {
@@ -88,6 +90,10 @@ export function parseShareHash(hash: string): Track[] | null {
 
     const now = new Date().toISOString()
     const tracks: Track[] = []
+    const name =
+      typeof parsed.name === "string" && parsed.name.trim()
+        ? parsed.name.trim().slice(0, 80)
+        : null
 
     for (const row of parsed.tracks) {
       if (
@@ -115,16 +121,68 @@ export function parseShareHash(hash: string): Track[] | null {
       })
     }
 
-    return tracks.length > 0 ? tracks : null
+    return tracks.length > 0 ? { name, tracks } : null
   } catch {
     return null
   }
 }
 
-/** Read share payload from the current page URL hash. */
-export function readShareFromLocation(): Track[] | null {
+/** Build a shareable URL that embeds the given tracks in the hash. */
+export function buildShareUrl(
+  tracks: Track[],
+  options: { name?: string | null; baseUrl?: string } = {},
+): string {
+  const payload = tracksToSharePayload(tracks, options.name)
+  const encoded = encodeSharePayload(payload)
+  const url = new URL(options.baseUrl ?? window.location.href)
+  url.hash = `share=${encoded}`
+  return url.toString()
+}
+
+/** Short share URL (`#s=<id>`) when server storage is available. */
+export function buildShortShareUrl(
+  shortId: string,
+  baseUrl = window.location.href,
+): string {
+  const url = new URL(baseUrl)
+  url.hash = `s=${shortId}`
+  return url.toString()
+}
+
+export function isShareUrlTooLong(url: string, limit = 7000): boolean {
+  return url.length > limit
+}
+
+/** Parse tracks from a share hash (`#share=…` or `#s=…`). */
+export function parseShareHash(hash: string): ParsedShare | null {
+  const raw = hash.startsWith("#") ? hash.slice(1) : hash
+  if (raw.startsWith("share=")) {
+    const encoded = raw.slice("share=".length)
+    if (!encoded) return null
+    return decodeSharePayload(encoded)
+  }
+  return null
+}
+
+/** Extract short share id from hash (`#s=abc123`). */
+export function parseShortShareId(hash: string): string | null {
+  const raw = hash.startsWith("#") ? hash.slice(1) : hash
+  if (!raw.startsWith("s=")) return null
+  const id = raw.slice(2).trim()
+  if (!/^[a-zA-Z0-9_-]{4,32}$/.test(id)) return null
+  return id
+}
+
+/** Read inline share payload from the current page URL hash. */
+export function readShareFromLocation(): ParsedShare | null {
   if (typeof window === "undefined") return null
   return parseShareHash(window.location.hash)
+}
+
+/** Read short share id from the current page URL hash. */
+export function readShortShareIdFromLocation(): string | null {
+  if (typeof window === "undefined") return null
+  return parseShortShareId(window.location.hash)
 }
 
 /** Clear the share hash without reloading. */

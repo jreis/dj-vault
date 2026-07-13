@@ -49,13 +49,12 @@ export function WelcomeBanner({ onOpenShortcuts }: WelcomeBannerProps) {
             Welcome to the vault
           </p>
           <p className="mt-0.5 text-xs leading-relaxed text-vault-muted">
-            Vote tracks up, build a queue, find similar cuts (vault + YouTube),
-            then hit{" "}
+            Vote tracks up, save named playlists, find similar cuts, then hit{" "}
             <kbd className="rounded border border-vault-border px-1 font-mono text-[10px]">
               f
             </kbd>{" "}
-            for Set Mode — a live fullscreen view. Share sets as links. No
-            accounts; everything lives in your browser.
+            for Set Mode. Share a set — friends open the link and it plays
+            immediately. No accounts; your library stays local.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -10,3 +10,9 @@ pages_build_output_dir = "dist"
 #     YOUTUBE_DISCOVERY_ENABLED    — optional plain var; set false/0/off to hard-disable
 #                                    YouTube Data API calls (keeps free quota / billing safe)
 # Local dev: .env.local with YOUTUBE_API_KEY=... (and optional YOUTUBE_DISCOVERY_ENABLED=false)
+#
+# Short share links (optional):
+#   1. Dashboard → Workers & Pages → KV → Create namespace (e.g. dj-vault-shares)
+#   2. Pages project → Settings → Functions → KV namespace bindings
+#        Variable name: SHARES  →  select the namespace (Production + Preview)
+#   Without SHARES, share buttons still work via #share=… hash URLs.

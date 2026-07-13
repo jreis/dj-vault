@@ -23,6 +23,15 @@ export interface Track {
   addedAt: string
 }
 
+/** Named, reorderable set of library track ids (persisted). */
+export interface Playlist {
+  id: string
+  name: string
+  trackIds: string[]
+  createdAt: string
+  updatedAt: string
+}
+
 export type SortKey = "score" | "title" | "artist" | "year" | "addedAt" | "genre"
 export type SortDir = "asc" | "desc"
 

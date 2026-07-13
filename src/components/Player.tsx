@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useVaultStore } from "../store/useVaultStore"
+import {
+  selectPlaybackTracks,
+  useVaultStore,
+} from "../store/useVaultStore"
 import { youtubeThumbUrl, youtubeWatchUrl } from "../lib/youtube"
 import {
   createYouTubePlayer,
@@ -13,6 +16,7 @@ const UNAVAILABLE_SKIP_MS = 2500
 
 export function Player() {
   const tracks = useVaultStore((s) => s.tracks)
+  const guestTracks = useVaultStore((s) => s.guestTracks)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const queue = useVaultStore((s) => s.queue)
   const playNext = useVaultStore((s) => s.playNext)
@@ -29,9 +33,15 @@ export function Player() {
   const setSetMode = useVaultStore((s) => s.setSetMode)
   const toggleSetMode = useVaultStore((s) => s.toggleSetMode)
 
-  const current = tracks.find((t) => t.id === nowPlayingId)
+  const playbackTracks = useMemo(
+    () => selectPlaybackTracks({ tracks, guestTracks }),
+    [tracks, guestTracks],
+  )
+  const resolve = (id: string) => playbackTracks.find((t) => t.id === id)
+
+  const current = nowPlayingId ? resolve(nowPlayingId) : undefined
   const queueTracks = queue
-    .map((id) => tracks.find((t) => t.id === id))
+    .map((id) => resolve(id))
     .filter((t): t is Track => Boolean(t))
 
   const setSize = (current ? 1 : 0) + queueTracks.length

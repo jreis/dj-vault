@@ -22,9 +22,11 @@ Portfolio + DJ Vault by [Jason Reis](https://jasonreis.dev).
 | **Similar** | In-vault rank + **YouTube discovery** (Data API via CF Function); one-click add |
 | **Playback** | YouTube embed + reorderable queue + continuous multi-track playlist |
 | **Set Mode** | Fullscreen live-set view — big now-playing, up-next, score badges (`f`) |
+| **Playlists** | Named sets saved from the queue; play / share / update / rename |
 | **Export** | Full library / playlist JSON, or copy a shareable URL |
-| **Import** | JSON merge/replace; open a shared link and merge/replace |
-| **Persistence** | Tracks, scores, queue, current track → `localStorage` |
+| **Share** | Open a link → set plays immediately (guest session); optional import / save as playlist |
+| **Import** | JSON merge/replace; short links via CF KV when configured |
+| **Persistence** | Tracks, scores, playlists, queue, current track → `localStorage` |
 | **UX** | Dark/light toggle, mobile card layout, keyboard-first nav |
 
 ## Quick start
@@ -66,20 +68,21 @@ npm run lint     # oxlint
 
 ```
 src/
-  components/   # Header, FilterBar, TrackTable, Player, AddTrackForm, Toolbar, SimilarTracks
+  components/   # Header, FilterBar, TrackTable, Player, PlaylistPanel, Toolbar, …
   data/         # Seed track catalog
   hooks/        # Keyboard navigation
-  lib/          # YouTube helpers, filter/sort, share-link, similarity, discover client
+  lib/          # YouTube helpers, filter/sort, share-link, share API, similarity
   store/        # Zustand + persist (localStorage)
   types.ts      # Shared domain types
-functions/      # Cloudflare Pages Functions (YouTube similar proxy)
+functions/      # Cloudflare Pages Functions (YouTube similar, short shares)
 ```
 
 - **State:** one Zustand store with `persist` (`dj-vault-v1`)
 - **Base path:** Vite `base: '/djvault/'` for `https://jasonreis.dev/djvault`
 - **Media:** YouTube iframe for playback; optional **YouTube Data API** key (server-side only) for Similar → “New on YouTube”
 - **API:** Cloudflare Pages Function `GET /api/youtube/similar` proxies search; secret `YOUTUBE_API_KEY`
-- **Sharing:** compact Base64URL payload in the URL hash (`#share=…`)
+- **Sharing:** compact Base64URL payload in the URL hash (`#share=…`), or short ids (`#s=…`) stored in Cloudflare KV (`SHARES` binding)
+- **Guest sets:** shared links load into ephemeral `guestTracks` and start playback without mutating the library until the user imports
 
 ### Data model
 
@@ -199,8 +202,20 @@ Cloudflare still serves real files under `/djvault/assets/` first; the rule only
 
 - **Problem:** Rank tracks for DJ sets without a spreadsheet or SaaS lock-in.
 - **Approach:** Local-first SPA; YouTube for media; pure filter/sort for snappy UX.
-- **Trade-offs:** Single-user by design; embeds depend on YouTube availability; huge libraries may need JSON export instead of share URLs.
-- **Senior touches:** Typed domain model, keyboard-first UX, Set Mode for live demos/gigs, shareable set links, accessible focus rings, mobile cards + desktop table, subdirectory-ready deploy.
+- **Trade-offs:** Single-user by design; embeds depend on YouTube availability; huge libraries may need JSON export instead of share URLs (or short KV links).
+- **Senior touches:** Typed domain model, keyboard-first UX, Set Mode for live demos/gigs, named playlists, play-on-open share links, accessible focus rings, mobile cards + desktop table, subdirectory-ready deploy.
+
+### Short share links (optional)
+
+Without extra setup, **Share playlist** embeds the set in the URL (`#share=…`). For shorter permanent links:
+
+1. Cloudflare Dashboard → **Workers & Pages** → **KV** → create a namespace (e.g. `dj-vault-shares`)
+2. Pages project → **Settings** → **Functions** → **KV namespace bindings**
+   - Variable name: **`SHARES`**
+   - Bind to that namespace for **Production** and **Preview**
+3. Redeploy
+
+Then share buttons prefer `POST /api/share` → `#s=<id>` URLs. If KV is missing, the client falls back to hash payloads automatically.
 
 ## Roadmap
 
