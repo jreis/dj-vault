@@ -1,6 +1,7 @@
 /**
  * Assemble Cloudflare Pages publish root:
  *   /              → portfolio landing (landing/)
+ *   /sharky/       → static memorial page (landing/sharky/)
  *   /djvault/      → DJ Vault SPA (Vite outDir)
  */
 import {
@@ -16,6 +17,7 @@ const root = join(process.cwd(), "dist")
 const appDir = join(root, "djvault")
 const landingDir = join(process.cwd(), "landing")
 const publicDir = join(process.cwd(), "public")
+const sharkySrc = join(landingDir, "sharky")
 
 if (!existsSync(appDir)) {
   console.error(
@@ -40,6 +42,14 @@ if (existsSync(portrait)) {
   copyFileSync(portrait, join(root, "jason-reis.jpg"))
 }
 
+// /sharky memorial page
+if (existsSync(join(sharkySrc, "index.html"))) {
+  cpSync(sharkySrc, join(root, "sharky"), { recursive: true })
+} else {
+  console.error("cf-pages: expected landing/sharky/index.html")
+  process.exit(1)
+}
+
 // Shared favicon at site root
 const favicon = join(publicDir, "favicon.svg")
 if (existsSync(favicon)) {
@@ -57,4 +67,4 @@ writeFileSync(
   ].join("\n"),
 )
 
-console.log("cf-pages: landing → dist/ + SPA fallback for /djvault/*")
+console.log("cf-pages: landing + sharky → dist/ + SPA fallback for /djvault/*")

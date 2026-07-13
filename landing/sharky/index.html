@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sharky | jasonreis.dev</title>
+    <meta
+      name="description"
+      content="In loving memory of the guy who fired me. May his propeller always find him."
+    />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#09090b" />
+    <meta property="og:title" content="Sharky" />
+    <meta property="og:description" content="A short memorial for a long decision." />
+    <meta property="og:image" content="https://jasonreis.dev/sharky/propeller.jpg" />
+    <meta property="og:url" content="https://jasonreis.dev/sharky/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href="https://jasonreis.dev/sharky/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #09090b;
+        --fg: #f4f4f5;
+        --muted: #a1a1aa;
+        --dim: #71717a;
+        --border: #27272a;
+        --card: rgba(24, 24, 27, 0.55);
+        --emerald: #34d399;
+        --emerald-dim: rgba(16, 185, 129, 0.65);
+        --red: #f87171;
+        --sky: #38bdf8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      main {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .wash {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse at top, rgba(16, 185, 129, 0.12), transparent 55%),
+          radial-gradient(ellipse at bottom, rgba(239, 68, 68, 0.08), transparent 50%);
+      }
+
+      .wrap {
+        position: relative;
+        max-width: 48rem;
+        margin: 0 auto;
+        padding: 4rem 1.5rem 5rem;
+      }
+
+      @media (min-width: 768px) {
+        .wrap {
+          padding-top: 6rem;
+          padding-bottom: 6rem;
+        }
+      }
+
+      .eyebrow {
+        text-align: center;
+        color: rgba(52, 211, 153, 0.9);
+        font-size: 0.75rem;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        margin: 0 0 1.5rem;
+      }
+
+      h1 {
+        margin: 0 0 0.75rem;
+        text-align: center;
+        font-size: clamp(3rem, 8vw, 4.5rem);
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        line-height: 1.05;
+      }
+
+      .tagline {
+        text-align: center;
+        color: var(--muted);
+        font-size: clamp(1.1rem, 2.5vw, 1.25rem);
+        margin: 0 0 2.5rem;
+      }
+
+      figure {
+        margin: 0 0 3rem;
+      }
+
+      .frame {
+        border-radius: 1rem;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        box-shadow:
+          0 25px 50px -12px rgba(0, 0, 0, 0.55),
+          0 0 0 1px rgba(255, 255, 255, 0.04);
+      }
+
+      .frame img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      figcaption {
+        margin-top: 1rem;
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--dim);
+        font-style: italic;
+      }
+
+      article {
+        color: #d4d4d8;
+        font-size: 1.125rem;
+        line-height: 1.7;
+      }
+
+      article p {
+        margin: 0 0 1.5rem;
+      }
+
+      article strong {
+        color: var(--fg);
+        font-weight: 600;
+      }
+
+      blockquote {
+        margin: 0 0 1.5rem;
+        padding: 0.25rem 0 0.25rem 1.25rem;
+        border-left: 4px solid var(--emerald-dim);
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      .stats {
+        margin-top: 3.5rem;
+        display: grid;
+        gap: 1rem;
+      }
+
+      @media (min-width: 640px) {
+        .stats {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+
+      .stat {
+        text-align: center;
+        border-radius: 0.75rem;
+        border: 1px solid var(--border);
+        background: var(--card);
+        padding: 1.25rem 1rem;
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+
+      .stat-value.green {
+        color: var(--emerald);
+      }
+
+      .stat-value.red {
+        color: var(--red);
+      }
+
+      .stat-value.sky {
+        color: var(--sky);
+      }
+
+      .stat-label {
+        margin-top: 0.25rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--dim);
+      }
+
+      footer {
+        margin-top: 4rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--dim);
+      }
+
+      footer p {
+        margin: 0 0 0.75rem;
+      }
+
+      footer a {
+        color: var(--emerald);
+        text-decoration: none;
+      }
+
+      footer a:hover {
+        color: #6ee7b7;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="wash" aria-hidden="true"></div>
+      <div class="wrap">
+        <p class="eyebrow">A public service memorial</p>
+        <h1>Sharky</h1>
+        <p class="tagline">Fired me. Met a boat motor. Nature is healing.</p>
+
+        <figure>
+          <div class="frame">
+            <img
+              src="/sharky/propeller.jpg"
+              alt="A cartoon shark about to have a very bad day under an outboard boat motor"
+              width="1344"
+              height="768"
+              decoding="async"
+              fetchpriority="high"
+            />
+          </div>
+          <figcaption>
+            Artist’s reconstruction of a leadership decision meeting the consequences of physics.
+          </figcaption>
+        </figure>
+
+        <article>
+          <p>
+            This page is dedicated to <strong>Sharky</strong> — the guy who showed me
+            the door. Some people leave a legacy of mentorship, courage, and craft.
+            Others leave a meeting invite that starts with “quick sync” and ends with HR.
+          </p>
+          <p>
+            May your prop always turn true. May your decisions land with the same
+            precision as an outboard at idle. May every “culture fit” conversation
+            echo faintly across open water.
+          </p>
+          <blockquote>
+            “It wasn’t personal.” — someone for whom it was, in fact, personal
+          </blockquote>
+          <p>
+            I’m still building. You’re… well. You’re here now. Welcome to the reef.
+          </p>
+        </article>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value green">1</div>
+            <div class="stat-label">Firing</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value red">∞</div>
+            <div class="stat-label">Prop RPM</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value sky">0</div>
+            <div class="stat-label">Regrets</div>
+          </div>
+        </div>
+
+        <footer>
+          <p>No actual sharks were harmed. One managerial ego may have been.</p>
+          <a href="/">← Back to jasonreis.dev</a>
+        </footer>
+      </div>
+    </main>
+  </body>
+</html>
