@@ -19,10 +19,11 @@ export function SimilarTracks() {
   const similarToId = useVaultStore((s) => s.similarToId)
   const setSimilarTo = useVaultStore((s) => s.setSimilarTo)
   const play = useVaultStore((s) => s.play)
-  const enqueue = useVaultStore((s) => s.enqueue)
+  const enqueueNext = useVaultStore((s) => s.enqueueNext)
   const playSet = useVaultStore((s) => s.playSet)
-  const enqueueMany = useVaultStore((s) => s.enqueueMany)
+  const enqueueManyNext = useVaultStore((s) => s.enqueueManyNext)
   const queue = useVaultStore((s) => s.queue)
+  const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const addTrack = useVaultStore((s) => s.addTrack)
   const showToast = useToastStore((s) => s.show)
 
@@ -104,11 +105,16 @@ export function SimilarTracks() {
         if (mode === "play") {
           play(existing.id)
           showToast(`Playing “${existing.title}”`, "info")
-        } else if (!queue.includes(existing.id)) {
-          enqueue(existing.id)
-          showToast(`Queued “${existing.title}”`, "info")
+        } else if (nowPlayingId === existing.id) {
+          showToast("Already playing", "info")
         } else {
-          showToast("Already in your vault and queue", "info")
+          enqueueNext(existing.id)
+          showToast(
+            nowPlayingId
+              ? `Up next: “${existing.title}”`
+              : `Queued “${existing.title}”`,
+            "info",
+          )
         }
       } else {
         showToast("Already in your vault", "info")
@@ -135,8 +141,13 @@ export function SimilarTracks() {
       play(track.id)
       showToast(`Added & playing “${title}”`, "success")
     } else {
-      enqueue(track.id)
-      showToast(`Added & queued “${title}”`, "success")
+      enqueueNext(track.id)
+      showToast(
+        nowPlayingId
+          ? `Added — up next: “${title}”`
+          : `Added & queued “${title}”`,
+        "success",
+      )
     }
   }
 
@@ -180,10 +191,15 @@ export function SimilarTracks() {
             </button>
             <button
               type="button"
-              onClick={() => enqueueMany(matchIds)}
+              onClick={() => enqueueManyNext(matchIds)}
               className="rounded-md border border-vault-border px-2.5 py-1 text-vault-muted hover:border-vault-blue hover:text-vault-blue"
+              title={
+                nowPlayingId
+                  ? "Insert similar tracks as up next"
+                  : "Add all similar tracks to the queue"
+              }
             >
-              Queue all similar
+              {nowPlayingId ? "Play similar next" : "Queue all similar"}
             </button>
           </>
         )}
@@ -225,7 +241,8 @@ export function SimilarTracks() {
         ) : (
           <ul className="divide-y divide-vault-border/60">
             {matches.map(({ track, score, reasons }) => {
-              const queued = queue.includes(track.id)
+              const isNext = queue[0] === track.id
+              const playing = nowPlayingId === track.id
               return (
                 <li
                   key={track.id}
@@ -265,11 +282,20 @@ export function SimilarTracks() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => enqueue(track.id)}
-                      disabled={queued}
+                      onClick={() => {
+                        enqueueNext(track.id)
+                        showToast(
+                          nowPlayingId && !playing
+                            ? `Up next: “${track.title}”`
+                            : `Queued “${track.title}”`,
+                          "success",
+                        )
+                      }}
+                      disabled={playing || isNext}
                       className="min-h-8 flex-1 rounded-md border border-vault-border px-2 py-1 text-xs text-vault-muted hover:border-vault-blue hover:text-vault-blue disabled:opacity-40 sm:flex-none"
+                      title="Play next after the current track"
                     >
-                      Queue
+                      {isNext ? "Up next" : "Play next"}
                     </button>
                     <button
                       type="button"
@@ -397,9 +423,13 @@ export function SimilarTracks() {
                       disabled={busy}
                       onClick={() => addDiscovered(video, "queue")}
                       className="min-h-8 flex-1 rounded-md border border-vault-border px-2 py-1 text-xs font-medium text-vault-blue hover:border-vault-blue disabled:opacity-40 sm:flex-none"
-                      title="Add to vault and queue"
+                      title={
+                        nowPlayingId
+                          ? "Add to vault and play next"
+                          : "Add to vault and queue"
+                      }
                     >
-                      Add & queue
+                      {nowPlayingId ? "Add next" : "Add & queue"}
                     </button>
                     <button
                       type="button"

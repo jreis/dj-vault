@@ -81,7 +81,11 @@ interface VaultState {
   play: (id: string) => void
   stop: () => void
   enqueue: (id: string) => void
+  /** Insert at front of queue (play next). Moves if already queued. */
+  enqueueNext: (id: string) => void
   enqueueMany: (ids: string[]) => void
+  /** Insert many at front of queue, preserving order (first id plays next). */
+  enqueueManyNext: (ids: string[]) => void
   dequeue: (id: string) => void
   clearQueue: () => void
   moveQueue: (id: string, direction: -1 | 1) => void
@@ -430,6 +434,14 @@ export const useVaultStore = create<VaultState>()(
         set((s) => (s.queue.includes(id) ? s : { queue: [...s.queue, id] }))
       },
 
+      enqueueNext: (id) => {
+        set((s) => {
+          if (s.nowPlayingId === id) return s
+          const rest = s.queue.filter((q) => q !== id)
+          return { queue: [id, ...rest] }
+        })
+      },
+
       enqueueMany: (ids) => {
         set((s) => {
           const seen = new Set(s.queue)
@@ -442,6 +454,23 @@ export const useVaultStore = create<VaultState>()(
             }
           }
           return { queue: next }
+        })
+      },
+
+      enqueueManyNext: (ids) => {
+        set((s) => {
+          const front: string[] = []
+          const seen = new Set<string>()
+          if (s.nowPlayingId) seen.add(s.nowPlayingId)
+          for (const id of ids) {
+            if (!seen.has(id)) {
+              seen.add(id)
+              front.push(id)
+            }
+          }
+          if (front.length === 0) return s
+          const remaining = s.queue.filter((q) => !front.includes(q))
+          return { queue: [...front, ...remaining] }
         })
       },
 
