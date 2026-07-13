@@ -93,10 +93,26 @@ export function SimilarTracks() {
 
   const matchIds = matches.map((m) => m.track.id)
 
-  function addDiscovered(video: DiscoverVideo, andPlay: boolean) {
+  function addDiscovered(
+    video: DiscoverVideo,
+    mode: "queue" | "play" = "queue",
+  ) {
     if (!seed) return
     if (vaultYtIds.has(video.youtubeId)) {
-      showToast("Already in your vault", "info")
+      const existing = tracks.find((t) => t.youtubeId === video.youtubeId)
+      if (existing) {
+        if (mode === "play") {
+          play(existing.id)
+          showToast(`Playing “${existing.title}”`, "info")
+        } else if (!queue.includes(existing.id)) {
+          enqueue(existing.id)
+          showToast(`Queued “${existing.title}”`, "info")
+        } else {
+          showToast("Already in your vault and queue", "info")
+        }
+      } else {
+        showToast("Already in your vault", "info")
+      }
       return
     }
     setAddingId(video.youtubeId)
@@ -113,10 +129,15 @@ export function SimilarTracks() {
       year: seed.year,
       notes: `Discovered via similar to “${seed.title}”`,
     })
-    showToast(`Added “${title}” to the vault`, "success")
     setDiscover((prev) => prev.filter((v) => v.youtubeId !== video.youtubeId))
     setAddingId(null)
-    if (andPlay) play(track.id)
+    if (mode === "play") {
+      play(track.id)
+      showToast(`Added & playing “${title}”`, "success")
+    } else {
+      enqueue(track.id)
+      showToast(`Added & queued “${title}”`, "success")
+    }
   }
 
   return (
@@ -374,16 +395,18 @@ export function SimilarTracks() {
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => addDiscovered(video, false)}
+                      onClick={() => addDiscovered(video, "queue")}
                       className="min-h-8 flex-1 rounded-md border border-vault-border px-2 py-1 text-xs font-medium text-vault-blue hover:border-vault-blue disabled:opacity-40 sm:flex-none"
+                      title="Add to vault and queue"
                     >
-                      Add
+                      Add & queue
                     </button>
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => addDiscovered(video, true)}
+                      onClick={() => addDiscovered(video, "play")}
                       className="min-h-8 flex-1 rounded-md border border-vault-border bg-vault-elevated px-2 py-1 text-xs text-vault-amber hover:border-vault-amber disabled:opacity-40 sm:flex-none"
+                      title="Add to vault and play now"
                     >
                       Add & play
                     </button>
