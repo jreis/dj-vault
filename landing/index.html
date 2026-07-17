@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Jason Reis — engineer, builder, and lifelong DJ. Portfolio, experiments, and DJ Vault."
+      content="Jason Reis — engineer, builder, and lifelong DJ. Portfolio, DJ Vault, ClaimForge, and experiments."
     />
     <meta name="theme-color" content="#0c0a09" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -30,6 +30,7 @@
       <nav class="nav" aria-label="Primary">
         <a href="#work">Work</a>
         <a href="#about">About</a>
+        <a href="https://claimforge.jasonreis.dev">ClaimForge</a>
         <a class="nav-cta" href="/djvault/">DJ Vault</a>
       </nav>
     </header>
@@ -48,6 +49,9 @@
           </p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="/djvault/">Open DJ Vault</a>
+            <a class="btn btn-ghost" href="https://claimforge.jasonreis.dev"
+              >ClaimForge</a
+            >
             <a class="btn btn-ghost" href="#work">See projects</a>
           </div>
         </div>
@@ -101,15 +105,37 @@
         </article>
 
         <div class="project-grid">
-          <article class="project-card muted">
+          <article class="project-card">
             <div class="project-meta">
-              <span class="pill pill-muted">Coming soon</span>
+              <span class="pill">New</span>
+              <span class="pill pill-muted">React · Workers AI · PDF</span>
             </div>
-            <h3>More projects</h3>
+            <h3>
+              <a href="https://claimforge.jasonreis.dev">ClaimForge</a>
+            </h3>
             <p>
-              Case studies and tools will land here. The vault was first —
-              more builds on the way.
+              Insurance claims intake helper — upload FNOL / ACORD-style PDFs,
+              extract key fields in the browser, flag missing required info, and
+              export a structured summary. Opt-in Workers AI for smarter extract
+              and scan OCR.
             </p>
+            <ul class="feature-list">
+              <li>Local-first PDF.js + heuristic field mapping</li>
+              <li>Completeness scoring · Markdown / JSON export</li>
+              <li>Optional Cloudflare Workers AI extract + OCR</li>
+            </ul>
+            <div class="project-actions">
+              <a class="btn btn-primary" href="https://claimforge.jasonreis.dev"
+                >Launch app</a
+              >
+              <a
+                class="btn btn-ghost"
+                href="https://github.com/jreis/claimforge"
+                target="_blank"
+                rel="noreferrer"
+                >Source ↗</a
+              >
+            </div>
           </article>
           <article class="project-card muted">
             <div class="project-meta">
@@ -155,6 +181,8 @@
         <span class="accent">jasonreis.dev</span>
         · Built with care ·
         <a href="/djvault/">DJ Vault</a>
+        ·
+        <a href="https://claimforge.jasonreis.dev">ClaimForge</a>
         ·
         <a href="https://github.com/jreis" target="_blank" rel="noreferrer"
           >GitHub</a
