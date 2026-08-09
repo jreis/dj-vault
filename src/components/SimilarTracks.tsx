@@ -20,6 +20,7 @@ export function SimilarTracks() {
   const setSimilarTo = useVaultStore((s) => s.setSimilarTo)
   const play = useVaultStore((s) => s.play)
   const enqueueNext = useVaultStore((s) => s.enqueueNext)
+  const enqueueMany = useVaultStore((s) => s.enqueueMany)
   const playSet = useVaultStore((s) => s.playSet)
   const enqueueManyNext = useVaultStore((s) => s.enqueueManyNext)
   const queue = useVaultStore((s) => s.queue)
@@ -193,20 +194,31 @@ export function SimilarTracks() {
                 setSimilarTo(null)
               }}
               className="rounded-md border border-vault-border bg-vault-elevated px-2.5 py-1 font-medium text-vault-amber hover:border-vault-amber"
+              title="Play seed track + all similar tracks"
             >
-              Play seed + similar
+              ▶ Play all ({matchIds.length + 1})
             </button>
             <button
               type="button"
-              onClick={() => enqueueManyNext(matchIds)}
-              className="rounded-md border border-vault-border px-2.5 py-1 text-vault-muted hover:border-vault-blue hover:text-vault-blue"
-              title={
-                nowPlayingId
-                  ? "Insert similar tracks as up next"
-                  : "Add all similar tracks to the queue"
-              }
+              onClick={() => {
+                enqueueManyNext(matchIds)
+                showToast(`Queued ${matchIds.length} similar tracks up next`, "success")
+              }}
+              className="rounded-md border border-vault-border px-2.5 py-1 text-vault-blue hover:border-vault-blue hover:bg-vault-blue/5"
+              title="Add similar tracks to front of queue (play next)"
             >
-              {nowPlayingId ? "Play similar next" : "Queue all similar"}
+              ⏭ Queue next ({matchIds.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                enqueueMany(matchIds)
+                showToast(`Added ${matchIds.length} similar tracks to queue`, "success")
+              }}
+              className="rounded-md border border-vault-border px-2.5 py-1 text-vault-muted hover:border-vault-blue hover:text-vault-blue"
+              title="Add similar tracks to end of queue"
+            >
+              + Queue all ({matchIds.length})
             </button>
           </>
         )}
