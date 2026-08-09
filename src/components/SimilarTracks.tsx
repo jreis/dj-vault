@@ -98,6 +98,10 @@ export function SimilarTracks() {
     video: DiscoverVideo,
     mode: "queue" | "play" = "queue",
   ) {
+    // Close similar panel if playing
+    if (mode === "play") {
+      setSimilarTo(null)
+    }
     if (!seed) return
     if (vaultYtIds.has(video.youtubeId)) {
       const existing = tracks.find((t) => t.youtubeId === video.youtubeId)
@@ -184,7 +188,10 @@ export function SimilarTracks() {
           <>
             <button
               type="button"
-              onClick={() => playSet([seed.id, ...matchIds])}
+              onClick={() => {
+                playSet([seed.id, ...matchIds])
+                setSimilarTo(null)
+              }}
               className="rounded-md border border-vault-border bg-vault-elevated px-2.5 py-1 font-medium text-vault-amber hover:border-vault-amber"
             >
               Play seed + similar
@@ -275,7 +282,10 @@ export function SimilarTracks() {
                   <div className="flex w-full gap-1.5 sm:w-auto sm:shrink-0">
                     <button
                       type="button"
-                      onClick={() => play(track.id)}
+                      onClick={() => {
+                        play(track.id)
+                        setSimilarTo(null)
+                      }}
                       className="min-h-8 flex-1 rounded-md border border-vault-border px-2 py-1 text-xs text-vault-amber hover:border-vault-amber sm:flex-none"
                     >
                       Play
