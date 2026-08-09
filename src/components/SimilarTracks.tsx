@@ -191,7 +191,8 @@ export function SimilarTracks() {
               type="button"
               onClick={() => {
                 playSet([seed.id, ...matchIds])
-                setSimilarTo(null)
+                // Delay closing panel slightly to ensure play action completes
+                setTimeout(() => setSimilarTo(null), 100)
               }}
               className="rounded-md border border-vault-border bg-vault-elevated px-2.5 py-1 font-medium text-vault-amber hover:border-vault-amber"
               title="Play seed track + all similar tracks"
@@ -297,7 +298,8 @@ export function SimilarTracks() {
                       type="button"
                       onClick={() => {
                         play(track.id)
-                        setSimilarTo(null)
+                        // Delay closing panel slightly to ensure play action completes
+                        setTimeout(() => setSimilarTo(null), 100)
                       }}
                       className="min-h-8 flex-1 rounded-md border border-vault-border px-2 py-1 text-xs text-vault-amber hover:border-vault-amber sm:flex-none"
                       title="Play this track now"
