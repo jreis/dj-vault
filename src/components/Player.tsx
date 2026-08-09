@@ -11,6 +11,7 @@ import {
 } from "../lib/youtubeApi"
 import type { Track } from "../types"
 import { AudioVisualizer } from "./AudioVisualizer"
+import { AddToPlaylistMenu } from "./AddToPlaylistMenu"
 
 /** Auto-skip delay after an unavailable embed so the user can read the message. */
 const UNAVAILABLE_SKIP_MS = 2500
@@ -73,7 +74,10 @@ export function Player() {
 
   // Mount / remount YouTube player when the vault track changes.
   useEffect(() => {
+    console.log('[Player] Effect triggered - trackId:', trackId, 'videoId:', videoId, 'current:', current)
+
     if (!trackId || !videoId) {
+      console.log('[Player] No track/video, clearing player')
       playerRef.current?.destroy()
       playerRef.current = null
       wiredTrackIdRef.current = null
@@ -83,6 +87,7 @@ export function Player() {
       return
     }
 
+    console.log('[Player] Initializing YouTube player for track:', trackId)
     wiredTrackIdRef.current = trackId
     setUnavailable(null)
     setPlayerReady(false)
@@ -499,6 +504,7 @@ export function Player() {
                   >
                     Similar
                   </button>
+                  <AddToPlaylistMenu trackId={current.id} trackTitle={current.title} />
                   <button
                     type="button"
                     onClick={toggleSetMode}

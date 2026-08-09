@@ -23,7 +23,7 @@ function setTrackList(s: {
 }
 
 export function PlaylistPanel() {
-  const playlists = useVaultStore((s) => s.playlists)
+  const allPlaylists = useVaultStore((s) => s.playlists)
   const tracks = useVaultStore((s) => s.tracks)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const queue = useVaultStore((s) => s.queue)
@@ -37,6 +37,10 @@ export function PlaylistPanel() {
   const exportPlaylists = useVaultStore((s) => s.exportPlaylists)
   const importPlaylists = useVaultStore((s) => s.importPlaylists)
   const showToast = useToastStore((s) => s.show)
+
+  // Separate curated (Jason's) playlists from user playlists
+  const curatedPlaylists = allPlaylists.filter((pl) => pl.curated)
+  const playlists = allPlaylists.filter((pl) => !pl.curated)
 
   const [nameDraft, setNameDraft] = useState("")
   const [descriptionDraft, setDescriptionDraft] = useState("")
@@ -171,7 +175,7 @@ export function PlaylistPanel() {
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-vault-border px-4 py-2.5">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-vault-muted">
           Playlists{" "}
-          <span className="font-mono text-vault-amber">{playlists.length}</span>
+          <span className="font-mono text-vault-amber">{allPlaylists.length}</span>
         </h2>
         <div className="flex items-center gap-2">
           <p className="text-[10px] text-vault-muted/70">
@@ -242,7 +246,78 @@ export function PlaylistPanel() {
           />
         </div>
 
-        {playlists.length === 0 ? (
+        {curatedPlaylists.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-vault-amber">
+              <span>Jason's Playlists</span>
+              <span className="h-px flex-1 bg-vault-amber/20" />
+            </h3>
+            <ul className="space-y-2">
+              {curatedPlaylists.map((pl) => {
+                const count = pl.trackIds.filter((id) =>
+                  tracks.some((t) => t.id === id),
+                ).length
+                return (
+                  <li
+                    key={pl.id}
+                    className="overflow-hidden rounded-lg border border-vault-amber/20 bg-gradient-to-br from-vault-amber/5 to-transparent shadow-sm"
+                  >
+                    <div className="flex flex-wrap items-start gap-2 px-3 py-2.5 sm:flex-nowrap">
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="truncate text-sm font-semibold text-vault-amber">
+                          {pl.name}
+                        </div>
+                        {pl.description && (
+                          <p className="text-xs italic text-vault-muted/80">
+                            {pl.description}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-vault-muted/70">
+                          <span className="font-mono">
+                            <span className="text-vault-amber">{count}</span> track
+                            {count === 1 ? "" : "s"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          type="button"
+                          disabled={count === 0}
+                          onClick={() => {
+                            playPlaylist(pl.id)
+                            showToast(`Playing "${pl.name}"`, "info")
+                          }}
+                          className="rounded-md border border-vault-amber/30 bg-vault-amber/10 px-2 py-1 text-[11px] text-vault-amber hover:border-vault-amber hover:bg-vault-amber/20 disabled:opacity-40"
+                        >
+                          Play
+                        </button>
+                        <button
+                          type="button"
+                          disabled={count === 0}
+                          onClick={() => void sharePlaylist(pl)}
+                          className="rounded-md border border-vault-border px-2 py-1 text-[11px] text-vault-blue hover:border-vault-blue disabled:opacity-40"
+                        >
+                          Share
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
+
+        {curatedPlaylists.length > 0 && playlists.length > 0 && (
+          <div className="flex items-center gap-2 py-2">
+            <h3 className="text-[11px] font-semibold uppercase tracking-wide text-vault-muted">
+              Your Playlists
+            </h3>
+            <span className="h-px flex-1 bg-vault-border/50" />
+          </div>
+        )}
+
+        {playlists.length === 0 && curatedPlaylists.length === 0 ? (
           <div className="rounded-lg border border-vault-border/50 bg-vault-elevated/30 px-4 py-8 text-center">
             <p className="text-xs font-medium text-vault-text">
               No saved playlists yet
@@ -254,6 +329,12 @@ export function PlaylistPanel() {
             <p className="mt-2 text-[10px] text-vault-muted/70">
               Your playlists are saved automatically to this browser and stay
               safe across sessions.
+            </p>
+          </div>
+        ) : playlists.length === 0 ? (
+          <div className="rounded-lg border border-vault-border/50 bg-vault-elevated/30 px-4 py-6 text-center">
+            <p className="text-xs text-vault-muted">
+              Try Jason's playlists above, or save your own!
             </p>
           </div>
         ) : (

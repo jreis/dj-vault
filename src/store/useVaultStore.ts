@@ -6,6 +6,7 @@ import {
   repairDeadYoutubeIds,
   SEED_TRACKS,
 } from "../data/seedTracks"
+import { SEED_PLAYLISTS } from "../data/seedPlaylists"
 import { estimateBPM } from "../lib/bpm"
 import type { Filters, Genre, Playlist, Track } from "../types"
 
@@ -76,6 +77,7 @@ interface VaultState {
   updatePlaylistDescription: (id: string, description: string) => void
   deletePlaylist: (id: string) => void
   updatePlaylistTracks: (id: string, trackIds: string[]) => void
+  addTrackToPlaylist: (playlistId: string, trackId: string) => void
   playPlaylist: (id: string) => void
   exportPlaylists: () => string
   importPlaylists: (json: string) => boolean
@@ -532,6 +534,20 @@ export const useVaultStore = create<VaultState>()(
         }))
       },
 
+      addTrackToPlaylist: (playlistId, trackId) => {
+        set((s) => ({
+          playlists: s.playlists.map((p) =>
+            p.id === playlistId && !p.curated
+              ? {
+                  ...p,
+                  trackIds: [...new Set([...p.trackIds, trackId])],
+                  updatedAt: new Date().toISOString(),
+                }
+              : p,
+          ),
+        }))
+      },
+
       playPlaylist: (id) => {
         const p = get().playlists.find((x) => x.id === id)
         if (!p || p.trackIds.length === 0) return
@@ -542,7 +558,11 @@ export const useVaultStore = create<VaultState>()(
         get().playSet(valid)
       },
 
-      play: (id) => set({ nowPlayingId: id, selectedId: id }),
+      play: (id) => {
+        console.log('[DJ Vault] Play called with id:', id)
+        set({ nowPlayingId: id, selectedId: id })
+        console.log('[DJ Vault] Now playing set to:', id)
+      },
       stop: () => set({ nowPlayingId: null, setMode: false }),
 
       enqueue: (id) => {
@@ -726,7 +746,7 @@ export const useVaultStore = create<VaultState>()(
           ? p.queue.filter((id) => trackIds.has(id))
           : current.queue
 
-        const playlists = Array.isArray(p.playlists)
+        const userPlaylists = Array.isArray(p.playlists)
           ? prunePlaylistIds(
               p.playlists.filter(
                 (pl): pl is Playlist =>
@@ -737,7 +757,12 @@ export const useVaultStore = create<VaultState>()(
               ),
               trackIds,
             )
-          : current.playlists
+          : []
+
+        // Load Jason's curated playlists if user has no playlists yet
+        const playlists = userPlaylists.length === 0
+          ? [...SEED_PLAYLISTS, ...userPlaylists]
+          : userPlaylists
 
         return {
           ...current,

@@ -93,14 +93,14 @@ export function FeatureTour() {
   const current = TOUR_STEPS[step]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <button
         type="button"
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/70 backdrop-blur-sm"
         onClick={skip}
         aria-label="Skip tour"
       />
-      <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border-2 border-vault-amber/50 bg-vault-surface shadow-2xl">
+      <div className="relative z-10 my-auto w-full max-w-lg overflow-hidden rounded-2xl border-2 border-vault-amber/50 bg-vault-surface shadow-2xl">
         <div className="border-b border-vault-border bg-gradient-to-r from-vault-amber/10 to-vault-blue/10 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>

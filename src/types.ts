@@ -34,6 +34,8 @@ export interface Playlist {
   trackIds: string[]
   createdAt: string
   updatedAt: string
+  /** Curated playlists by Jason (featured/pinned) */
+  curated?: boolean
 }
 
 export type SortKey = "score" | "title" | "artist" | "year" | "addedAt" | "genre" | "bpm"

@@ -2,6 +2,7 @@ import type { Track } from "../types"
 import { useVaultStore } from "../store/useVaultStore"
 import { youtubeThumbUrl } from "../lib/youtube"
 import { TrackWaveform } from "./TrackWaveform"
+import { AddToPlaylistMenu } from "./AddToPlaylistMenu"
 
 interface TrackTableProps {
   tracks: Track[]
@@ -197,12 +198,15 @@ export function TrackTable({ tracks }: TrackTableProps) {
                     >
                       Similar
                     </button>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <AddToPlaylistMenu trackId={track.id} trackTitle={track.title} />
+                    </div>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
                         if (
-                          confirm(`Remove “${track.title}” from the vault?`)
+                          confirm(`Remove "${track.title}" from the vault?`)
                         ) {
                           removeTrack(track.id)
                         }
@@ -421,13 +425,16 @@ export function TrackTable({ tracks }: TrackTableProps) {
                         >
                           Similar
                         </button>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <AddToPlaylistMenu trackId={track.id} trackTitle={track.title} />
+                        </div>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
                             if (
                               confirm(
-                                `Remove “${track.title}” from the vault?`,
+                                `Remove "${track.title}" from the vault?`,
                               )
                             ) {
                               removeTrack(track.id)
