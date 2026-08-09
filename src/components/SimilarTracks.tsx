@@ -262,6 +262,7 @@ export function SimilarTracks() {
             {matches.map(({ track, score, reasons }) => {
               const isNext = queue[0] === track.id
               const playing = nowPlayingId === track.id
+              const queued = queue.includes(track.id)
               return (
                 <li
                   key={track.id}
@@ -299,6 +300,7 @@ export function SimilarTracks() {
                         setSimilarTo(null)
                       }}
                       className="min-h-8 flex-1 rounded-md border border-vault-border px-2 py-1 text-xs text-vault-amber hover:border-vault-amber sm:flex-none"
+                      title="Play this track now"
                     >
                       Play
                     </button>
@@ -306,18 +308,25 @@ export function SimilarTracks() {
                       type="button"
                       onClick={() => {
                         enqueueNext(track.id)
-                        showToast(
-                          nowPlayingId && !playing
-                            ? `Up next: “${track.title}”`
-                            : `Queued “${track.title}”`,
-                          "success",
-                        )
+                        showToast(`Up next: "${track.title}"`, "success")
                       }}
                       disabled={playing || isNext}
-                      className="min-h-8 flex-1 rounded-md border border-vault-border px-2 py-1 text-xs text-vault-muted hover:border-vault-blue hover:text-vault-blue disabled:opacity-40 sm:flex-none"
+                      className="min-h-8 flex-1 rounded-md border border-vault-border px-2 py-1 text-xs text-vault-blue hover:border-vault-blue hover:bg-vault-blue/5 disabled:opacity-40 sm:flex-none"
                       title="Play next after the current track"
                     >
-                      {isNext ? "Up next" : "Play next"}
+                      {isNext ? "Up next" : "Next"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        useVaultStore.getState().enqueue(track.id)
+                        showToast(`Queued "${track.title}"`, "success")
+                      }}
+                      disabled={playing || queued}
+                      className="min-h-8 flex-1 rounded-md border border-vault-border px-2 py-1 text-xs text-vault-muted hover:border-vault-blue hover:text-vault-blue disabled:opacity-40 sm:flex-none"
+                      title="Add to end of queue"
+                    >
+                      {queued ? "Queued" : "Queue"}
                     </button>
                     <button
                       type="button"
