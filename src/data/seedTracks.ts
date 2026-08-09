@@ -1,4 +1,5 @@
 import type { Track } from "../types"
+import { estimateBPM } from "../lib/bpm"
 
 /**
  * Known-dead YouTube IDs that shipped in earlier seed data → current working IDs.
@@ -36,6 +37,13 @@ export function ensureSeedTracks(tracks: Track[]): Track[] {
     (s) => !ids.has(s.id) && !yts.has(s.youtubeId),
   )
   return missing.length > 0 ? [...tracks, ...missing] : tracks
+}
+
+/**
+ * Ensure all tracks have BPM calculated
+ */
+export function ensureTrackBPMs(tracks: Track[]): Track[] {
+  return tracks.map((t) => (t.bpm ? t : { ...t, bpm: estimateBPM(t) }))
 }
 
 /** Curated starter vault — 90s/00s rock, metal, grunge, punk classics */

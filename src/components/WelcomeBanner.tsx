@@ -49,12 +49,14 @@ export function WelcomeBanner({ onOpenShortcuts }: WelcomeBannerProps) {
             Welcome to the vault
           </p>
           <p className="mt-0.5 text-xs leading-relaxed text-vault-muted">
-            Vote tracks up, save named playlists, find similar cuts, then hit{" "}
+            Explore 21 curated tracks, discover new artists, or start Radio Mode
+            for endless music. Click "Similar" on any track to find related songs.
+            Save playlists with dedications, backup anytime. Hit{" "}
             <kbd className="rounded border border-vault-border px-1 font-mono text-[10px]">
               f
             </kbd>{" "}
-            for Set Mode. Share a set — friends open the link and it plays
-            immediately. No accounts; your library stays local.
+            for Set Mode with live visualizer. Everything saves to your browser
+            automatically.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

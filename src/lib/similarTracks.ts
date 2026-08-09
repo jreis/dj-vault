@@ -1,4 +1,5 @@
 import type { Era, Genre, Track } from "../types"
+import { getArtistSimilarity, getSimilarArtists } from "./artistRelations"
 
 export interface SimilarMatch {
   track: Track
@@ -102,6 +103,18 @@ function scorePair(seed: Track, candidate: Track): SimilarMatch | null {
   if (seed.artist.toLowerCase() === candidate.artist.toLowerCase()) {
     score += 18
     reasons.push("same artist")
+  } else {
+    // Artist similarity from database
+    const artistSim = getArtistSimilarity(seed.artist, candidate.artist)
+    if (artistSim >= 80) {
+      score += 35
+      reasons.push(`similar artist (${candidate.artist})`)
+    } else if (artistSim >= 40) {
+      score += 20
+      reasons.push(`related artist (${candidate.artist})`)
+    } else if (artistSim >= 20) {
+      score += 10
+    }
   }
 
   // DJ notes keyword overlap (energy, placement, mood)
@@ -185,4 +198,19 @@ export function youtubeSimilarSearchUrl(track: Track): string {
 export function youtubeArtistSearchUrl(track: Track): string {
   const q = `${track.artist} music`
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
+}
+
+/**
+ * Get suggested artists to explore based on a track
+ * Returns artists that are similar but not in the current library
+ */
+export function getSuggestedArtists(track: Track, library: Track[]): string[] {
+  const libraryArtists = new Set(
+    library.map((t) => t.artist.toLowerCase())
+  )
+
+  const similar = getSimilarArtists(track.artist)
+  return similar.filter(
+    (artist) => !libraryArtists.has(artist.toLowerCase())
+  ).slice(0, 5)
 }

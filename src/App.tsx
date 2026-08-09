@@ -8,8 +8,12 @@ import { Toolbar } from "./components/Toolbar"
 import { PlaylistPanel } from "./components/PlaylistPanel"
 import { SharedSetBanner } from "./components/SharedSetBanner"
 import { SimilarTracks } from "./components/SimilarTracks"
+import { DiscoveryPanel } from "./components/DiscoveryPanel"
+import { RadioMode } from "./components/RadioMode"
+import { MusicProfile } from "./components/MusicProfile"
 import { WelcomeBanner } from "./components/WelcomeBanner"
 import { ShortcutsModal } from "./components/ShortcutsModal"
+import { FeatureTour } from "./components/FeatureTour"
 import { Toast } from "./components/Toast"
 import { filterAndSortTracks } from "./lib/filterTracks"
 import { fetchShortShare } from "./lib/shareApi"
@@ -131,6 +135,18 @@ export default function App() {
           <PlaylistPanel />
         </div>
 
+        <div className="mb-4">
+          <DiscoveryPanel />
+        </div>
+
+        <div className="mb-4">
+          <RadioMode />
+        </div>
+
+        <div className="mb-4">
+          <MusicProfile />
+        </div>
+
         {showAddForm && (
           <div className="mb-5 animate-fade-in">
             <AddTrackForm />
@@ -191,6 +207,7 @@ export default function App() {
       </footer>
 
       <ShortcutsModal open={showShortcuts} onClose={closeShortcuts} />
+      <FeatureTour />
       <Toast />
     </div>
   )

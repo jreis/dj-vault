@@ -10,6 +10,7 @@ import {
   type YtPlayer,
 } from "../lib/youtubeApi"
 import type { Track } from "../types"
+import { AudioVisualizer } from "./AudioVisualizer"
 
 /** Auto-skip delay after an unavailable embed so the user can read the message. */
 const UNAVAILABLE_SKIP_MS = 2500
@@ -288,6 +289,18 @@ export function Player() {
                 }
               >
                 <div ref={hostRef} className="h-full w-full" />
+                {/* Audio visualizer overlay - only in set mode */}
+                {setMode && playerReady && !unavailable && (
+                  <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-center p-4">
+                    <div className="h-32 w-full max-w-2xl rounded-lg bg-gradient-to-t from-black/60 to-transparent p-4">
+                      <AudioVisualizer
+                        active={playerReady && !unavailable}
+                        variant="bars"
+                        theme="amber"
+                      />
+                    </div>
+                  </div>
+                )}
                 {unavailable && (
                   <div
                     className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-stone-950/92 p-6 text-center backdrop-blur-sm"
@@ -365,11 +378,23 @@ export function Player() {
                         <span className="text-amber-400/90">{current.genre}</span>
                         <span className="text-stone-600"> · </span>
                         {current.era}
+                        {current.bpm && (
+                          <>
+                            <span className="text-stone-600"> · </span>
+                            <span className="font-mono text-sky-400">{current.bpm} BPM</span>
+                          </>
+                        )}
                       </>
                     ) : (
                       <>
                         {" "}
                         · {current.year} · {current.genre}
+                        {current.bpm && (
+                          <>
+                            {" "}
+                            · <span className="font-mono text-vault-blue">{current.bpm} BPM</span>
+                          </>
+                        )}
                       </>
                     )}
                   </p>

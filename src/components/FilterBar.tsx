@@ -12,6 +12,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "title", label: "Title" },
   { value: "artist", label: "Artist" },
   { value: "year", label: "Year" },
+  { value: "bpm", label: "BPM" },
   { value: "genre", label: "Genre" },
   { value: "addedAt", label: "Added" },
 ]

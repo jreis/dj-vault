@@ -21,18 +21,22 @@ export interface Track {
   score: number
   notes: string
   addedAt: string
+  /** Estimated BPM (beats per minute) - calculated on load */
+  bpm?: number
 }
 
-/** Named, reorderable set of library track ids (persisted). */
+/** Named, reorderable set of library track ids (persisted to localStorage). */
 export interface Playlist {
   id: string
   name: string
+  /** Optional description/dedication (e.g., "In memory of...") */
+  description?: string
   trackIds: string[]
   createdAt: string
   updatedAt: string
 }
 
-export type SortKey = "score" | "title" | "artist" | "year" | "addedAt" | "genre"
+export type SortKey = "score" | "title" | "artist" | "year" | "addedAt" | "genre" | "bpm"
 export type SortDir = "asc" | "desc"
 
 export interface Filters {

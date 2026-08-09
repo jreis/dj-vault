@@ -32,6 +32,9 @@ export function filterAndSortTracks(tracks: Track[], filters: Filters): Track[] 
       case "year":
         cmp = a.year - b.year
         break
+      case "bpm":
+        cmp = (a.bpm ?? 0) - (b.bpm ?? 0)
+        break
       case "title":
         cmp = a.title.localeCompare(b.title)
         break

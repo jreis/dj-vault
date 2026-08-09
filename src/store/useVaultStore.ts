@@ -2,9 +2,11 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import {
   ensureSeedTracks,
+  ensureTrackBPMs,
   repairDeadYoutubeIds,
   SEED_TRACKS,
 } from "../data/seedTracks"
+import { estimateBPM } from "../lib/bpm"
 import type { Filters, Genre, Playlist, Track } from "../types"
 
 function uid(prefix = "t"): string {
@@ -68,12 +70,15 @@ interface VaultState {
   saveGuestAsPlaylist: (name: string) => Playlist | null
 
   // named playlists
-  saveQueueAsPlaylist: (name: string) => Playlist | null
-  createPlaylist: (name: string, trackIds: string[]) => Playlist
+  saveQueueAsPlaylist: (name: string, description?: string) => Playlist | null
+  createPlaylist: (name: string, trackIds: string[], description?: string) => Playlist
   renamePlaylist: (id: string, name: string) => void
+  updatePlaylistDescription: (id: string, description: string) => void
   deletePlaylist: (id: string) => void
   updatePlaylistTracks: (id: string, trackIds: string[]) => void
   playPlaylist: (id: string) => void
+  exportPlaylists: () => string
+  importPlaylists: (json: string) => boolean
   /** Resolve track from library or guest session. */
   resolveTrack: (id: string) => Track | undefined
 
@@ -174,6 +179,18 @@ export const useVaultStore = create<VaultState>()(
           score: 0,
           notes: input.notes?.trim() ?? "",
           addedAt: new Date().toISOString(),
+          bpm: estimateBPM({
+            id: "",
+            title: input.title.trim(),
+            artist: input.artist.trim(),
+            youtubeId: input.youtubeId,
+            genre: input.genre,
+            era: input.era,
+            year: input.year,
+            score: 0,
+            notes: input.notes?.trim() ?? "",
+            addedAt: new Date().toISOString(),
+          }),
         }
         set((s) => ({
           tracks: [track, ...s.tracks],
@@ -233,13 +250,14 @@ export const useVaultStore = create<VaultState>()(
       },
 
       importTracks: (tracks, mode) => {
+        const tracksWithBPM = ensureTrackBPMs(tracks)
         if (mode === "replace") {
-          const trackIds = new Set(tracks.map((t) => t.id))
+          const trackIds = new Set(tracksWithBPM.map((t) => t.id))
           set((s) => ({
-            tracks,
+            tracks: tracksWithBPM,
             queue: [],
             nowPlayingId: null,
-            selectedId: tracks[0]?.id ?? null,
+            selectedId: tracksWithBPM[0]?.id ?? null,
             playlists: prunePlaylistIds(s.playlists, trackIds),
             guestTracks: [],
             guestSetName: null,
@@ -251,7 +269,7 @@ export const useVaultStore = create<VaultState>()(
           const existingYt = new Set(s.tracks.map((t) => t.youtubeId))
           const merged = [
             ...s.tracks,
-            ...tracks.filter(
+            ...tracksWithBPM.filter(
               (t) => !existingIds.has(t.id) && !existingYt.has(t.youtubeId),
             ),
           ]
@@ -261,10 +279,11 @@ export const useVaultStore = create<VaultState>()(
 
       loadGuestSet: (tracks, name) => {
         if (tracks.length === 0) return
-        const ids = tracks.map((t) => t.id)
+        const tracksWithBPM = ensureTrackBPMs(tracks)
+        const ids = tracksWithBPM.map((t) => t.id)
         const [first, ...rest] = ids
         set({
-          guestTracks: tracks,
+          guestTracks: tracksWithBPM,
           guestSetName: name?.trim() || null,
           nowPlayingId: first,
           selectedId: first,
@@ -360,7 +379,7 @@ export const useVaultStore = create<VaultState>()(
         return get().createPlaylist(trimmed, trackIds)
       },
 
-      saveQueueAsPlaylist: (name) => {
+      saveQueueAsPlaylist: (name, description) => {
         const trimmed = name.trim().slice(0, 80)
         if (!trimmed) return null
         const s = get()
@@ -369,14 +388,15 @@ export const useVaultStore = create<VaultState>()(
           s.tracks.some((t) => t.id === id),
         )
         if (ids.length === 0) return null
-        return get().createPlaylist(trimmed, ids)
+        return get().createPlaylist(trimmed, ids, description)
       },
 
-      createPlaylist: (name, trackIds) => {
+      createPlaylist: (name, trackIds, description) => {
         const now = new Date().toISOString()
         const playlist: Playlist = {
           id: uid("pl"),
           name: name.trim().slice(0, 80) || "Untitled",
+          description: description?.trim() || undefined,
           trackIds: [...new Set(trackIds)],
           createdAt: now,
           updatedAt: now,
@@ -397,10 +417,105 @@ export const useVaultStore = create<VaultState>()(
         }))
       },
 
+      updatePlaylistDescription: (id, description) => {
+        set((s) => ({
+          playlists: s.playlists.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  description: description.trim() || undefined,
+                  updatedAt: new Date().toISOString(),
+                }
+              : p,
+          ),
+        }))
+      },
+
       deletePlaylist: (id) => {
         set((s) => ({
           playlists: s.playlists.filter((p) => p.id !== id),
         }))
+      },
+
+      exportPlaylists: () => {
+        const s = get()
+        const data = {
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          playlists: s.playlists.map((pl) => ({
+            ...pl,
+            tracks: pl.trackIds
+              .map((id) => s.tracks.find((t) => t.id === id))
+              .filter((t): t is Track => Boolean(t)),
+          })),
+        }
+        return JSON.stringify(data, null, 2)
+      },
+
+      importPlaylists: (json) => {
+        try {
+          const data = JSON.parse(json) as {
+            version: number
+            playlists: Array<
+              Playlist & { tracks?: Track[] }
+            >
+          }
+          if (!data.playlists || !Array.isArray(data.playlists)) return false
+
+          set((s) => {
+            const newPlaylists: Playlist[] = []
+            const tracksToAdd: Track[] = []
+            const existingYoutubeIds = new Set(
+              s.tracks.map((t) => t.youtubeId),
+            )
+
+            for (const pl of data.playlists) {
+              // Import tracks if they don't exist
+              const trackIds: string[] = []
+              if (pl.tracks && Array.isArray(pl.tracks)) {
+                for (const track of pl.tracks) {
+                  const existing = s.tracks.find(
+                    (t) => t.youtubeId === track.youtubeId,
+                  )
+                  if (existing) {
+                    trackIds.push(existing.id)
+                  } else if (!existingYoutubeIds.has(track.youtubeId)) {
+                    const newTrack = { ...track, id: uid("t") }
+                    tracksToAdd.push(newTrack)
+                    trackIds.push(newTrack.id)
+                    existingYoutubeIds.add(track.youtubeId)
+                  }
+                }
+              } else {
+                // Just track IDs, keep what exists
+                trackIds.push(
+                  ...pl.trackIds.filter((id) =>
+                    s.tracks.some((t) => t.id === id),
+                  ),
+                )
+              }
+
+              if (trackIds.length > 0) {
+                newPlaylists.push({
+                  id: uid("pl"),
+                  name: pl.name,
+                  description: pl.description,
+                  trackIds,
+                  createdAt: pl.createdAt || new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                })
+              }
+            }
+
+            return {
+              playlists: [...newPlaylists, ...s.playlists],
+              tracks: ensureTrackBPMs([...tracksToAdd, ...s.tracks]),
+            }
+          })
+          return true
+        } catch {
+          return false
+        }
       },
 
       updatePlaylistTracks: (id, trackIds) => {
@@ -598,7 +713,9 @@ export const useVaultStore = create<VaultState>()(
           Array.isArray(p.tracks) && p.tracks.length > 0
             ? p.tracks
             : current.tracks
-        const tracks = ensureSeedTracks(repairDeadYoutubeIds(rawTracks))
+        const tracks = ensureTrackBPMs(
+          ensureSeedTracks(repairDeadYoutubeIds(rawTracks)),
+        )
 
         const trackIds = new Set(tracks.map((t) => t.id))
         const nowPlayingId =

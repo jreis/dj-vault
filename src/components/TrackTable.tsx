@@ -1,6 +1,7 @@
 import type { Track } from "../types"
 import { useVaultStore } from "../store/useVaultStore"
 import { youtubeThumbUrl } from "../lib/youtube"
+import { TrackWaveform } from "./TrackWaveform"
 
 interface TrackTableProps {
   tracks: Track[]
@@ -144,6 +145,12 @@ export function TrackTable({ tracks }: TrackTableProps) {
                     {track.year}
                     <span className="text-vault-border"> · </span>
                     {track.genre}
+                    {track.bpm && (
+                      <>
+                        <span className="text-vault-border"> · </span>
+                        <span className="font-mono text-vault-blue">{track.bpm} BPM</span>
+                      </>
+                    )}
                   </p>
                   {track.notes && (
                     <p className="mt-0.5 truncate text-xs text-vault-muted/70">
@@ -228,6 +235,9 @@ export function TrackTable({ tracks }: TrackTableProps) {
                 </th>
                 <th className="hidden px-3 py-2.5 font-medium sm:table-cell">
                   Era
+                </th>
+                <th className="hidden px-3 py-2.5 font-medium xl:table-cell">
+                  BPM
                 </th>
                 <th className="hidden px-3 py-2.5 font-medium lg:table-cell">
                   Notes
@@ -342,6 +352,27 @@ export function TrackTable({ tracks }: TrackTableProps) {
 
                     <td className="hidden px-3 py-2.5 align-middle font-mono text-vault-muted sm:table-cell">
                       {track.era}
+                    </td>
+
+                    <td className="hidden px-3 py-2.5 align-middle xl:table-cell">
+                      {track.bpm ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm text-vault-blue">
+                            {track.bpm}
+                          </span>
+                          <div className="h-6 w-16">
+                            <TrackWaveform
+                              trackId={track.id}
+                              width={64}
+                              height={24}
+                              color="blue"
+                              mini
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-vault-muted/50">—</span>
+                      )}
                     </td>
 
                     <td className="hidden max-w-[12rem] truncate px-3 py-2.5 align-middle text-vault-muted lg:table-cell">
