@@ -8,7 +8,8 @@ interface AddToPlaylistMenuProps {
 }
 
 export function AddToPlaylistMenu({ trackId, trackTitle }: AddToPlaylistMenuProps) {
-  const playlists = useVaultStore((s) => s.playlists.filter((pl) => !pl.curated))
+  const allPlaylists = useVaultStore((s) => s.playlists)
+  const playlists = allPlaylists.filter((pl) => !pl.curated)
   const addTrackToPlaylist = useVaultStore((s) => s.addTrackToPlaylist)
   const showToast = useToastStore((s) => s.show)
   const [isOpen, setIsOpen] = useState(false)

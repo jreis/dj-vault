@@ -74,10 +74,7 @@ export function Player() {
 
   // Mount / remount YouTube player when the vault track changes.
   useEffect(() => {
-    console.log('[Player] Effect triggered - trackId:', trackId, 'videoId:', videoId, 'current:', current)
-
     if (!trackId || !videoId) {
-      console.log('[Player] No track/video, clearing player')
       playerRef.current?.destroy()
       playerRef.current = null
       wiredTrackIdRef.current = null
@@ -87,7 +84,6 @@ export function Player() {
       return
     }
 
-    console.log('[Player] Initializing YouTube player for track:', trackId)
     wiredTrackIdRef.current = trackId
     setUnavailable(null)
     setPlayerReady(false)

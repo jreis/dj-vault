@@ -559,9 +559,7 @@ export const useVaultStore = create<VaultState>()(
       },
 
       play: (id) => {
-        console.log('[DJ Vault] Play called with id:', id)
         set({ nowPlayingId: id, selectedId: id })
-        console.log('[DJ Vault] Now playing set to:', id)
       },
       stop: () => set({ nowPlayingId: null, setMode: false }),
 
