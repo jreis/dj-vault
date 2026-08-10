@@ -132,10 +132,6 @@ export default function App() {
         </div>
 
         <div className="mb-4">
-          <PlaylistPanel />
-        </div>
-
-        <div className="mb-4">
           <DiscoveryPanel />
         </div>
 
@@ -170,6 +166,10 @@ export default function App() {
           <section aria-label="Track library" className="order-2 lg:order-1">
             <TrackTable tracks={visible} />
           </section>
+        </div>
+
+        <div className="mt-4">
+          <PlaylistPanel />
         </div>
       </main>
 
