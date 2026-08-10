@@ -79,8 +79,8 @@ functions/      # Cloudflare Pages Functions (YouTube similar, short shares)
 
 - **State:** one Zustand store with `persist` (`dj-vault-v1`)
 - **Base path:** Vite `base: '/djvault/'` for `https://jasonreis.dev/djvault`
-- **Media:** YouTube iframe for playback; optional **YouTube Data API** key (server-side only) for Similar → “New on YouTube”
-- **API:** Cloudflare Pages Function `GET /api/youtube/similar` proxies search; secret `YOUTUBE_API_KEY`
+- **Media:** YouTube iframe for playback; optional **YouTube Data API** key (server-side only) for Similar → “New on YouTube” and search-to-add
+- **API:** Cloudflare Pages Functions `GET /api/youtube/similar` (discovery) and `GET /api/youtube/search` (add-track search) proxy the Data API; both share secret `YOUTUBE_API_KEY` and the same quota circuit breaker
 - **Sharing:** compact Base64URL payload in the URL hash (`#share=…`), or short ids (`#s=…`) stored in Cloudflare KV (`SHARES` binding)
 - **Guest sets:** shared links load into ephemeral `guestTracks` and start playback without mutating the library until the user imports
 
@@ -144,7 +144,7 @@ git push -u origin main
 
 You’ll get a URL like `https://dj-vault-xxxx.pages.dev` — open **`…pages.dev/djvault/`**.
 
-### 2b. YouTube discovery (Similar → New on YouTube)
+### 2b. YouTube discovery (Similar → New on YouTube, and search-to-add)
 
 1. Create a [YouTube Data API v3](https://console.cloud.google.com/apis/library/youtube.googleapis.com) key (Google Cloud → enable YouTube Data API v3 → Credentials → API key). Restrict the key by HTTP referrer or IP if you can.
 2. Cloudflare Pages project → **Settings** → **Environment variables** → add **`YOUTUBE_API_KEY`** for **Production** and **Preview**, mark as **Encrypt** / secret.
@@ -158,17 +158,17 @@ echo 'YOUTUBE_API_KEY=your_key_here' >> .env.local
 npm run dev
 ```
 
-Without a key, Similar still ranks the vault and shows YouTube search links; discovery returns a clear “not configured” message.
+Without a key, Similar still ranks the vault and shows YouTube search links, and Add track falls back to pasting a link; both surfaces show a clear “not configured” message instead of erroring.
 
-**Quota / “don’t go broke” guards:**
+**Quota / “don’t go broke” guards** (shared by `/api/youtube/similar` and `/api/youtube/search` — one budget, one breaker):
 
 | Guard | What it does |
 | --- | --- |
-| Response cache | Successful searches cached ~30 min at the edge (same track → no extra units) |
-| Auto circuit breaker | On `quotaExceeded` / daily limit, server **stops calling Google** until midnight Pacific; client also skips further requests for the session |
+| Response cache | Successful searches cached ~30 min at the edge (same query → no extra units) |
+| Auto circuit breaker | On `quotaExceeded` / daily limit, server **stops calling Google** until midnight Pacific; client also skips further requests for the session, for both discovery and add-track search |
 | Kill switch | Set **`YOUTUBE_DISCOVERY_ENABLED=false`** (CF env or `.env.local`) to hard-disable all Data API calls without removing the key |
 
-Each Similar open costs one `Search.list` (~100 units). Free tier is **10,000 units/day ≈ 100 opens/day**. Prefer the kill switch if you want discovery off permanently; the breaker handles “ran out today.”
+Each Similar open or add-track search costs one `Search.list` (~100 units). Free tier is **10,000 units/day ≈ 100 calls/day combined**. Prefer the kill switch if you want discovery/search off permanently; the breaker handles “ran out today.”
 
 ### 3. Attach jasonreis.dev
 

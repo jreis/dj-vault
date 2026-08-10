@@ -1,6 +1,12 @@
-import { useMemo, useState, type FormEvent } from "react"
+import { useMemo, useRef, useState, type FormEvent } from "react"
 import { ERAS, GENRES, type Era, type Genre } from "../types"
 import { parseYouTubeId, youtubeThumbUrl } from "../lib/youtube"
+import {
+  DiscoverError,
+  guessTitleArtist,
+  searchYouTubeVideos,
+  type DiscoverVideo,
+} from "../lib/youtubeDiscover"
 import { useVaultStore } from "../store/useVaultStore"
 import { useToastStore } from "../store/useToastStore"
 
@@ -13,10 +19,16 @@ function eraFromYear(year: number): Era {
   return "20s"
 }
 
+type Mode = "search" | "manual"
+type SearchStatus = "idle" | "loading" | "ready" | "error"
+
 export function AddTrackForm() {
+  const tracks = useVaultStore((s) => s.tracks)
   const addTrack = useVaultStore((s) => s.addTrack)
   const setShowAddForm = useVaultStore((s) => s.setShowAddForm)
   const showToast = useToastStore((s) => s.show)
+
+  const [mode, setMode] = useState<Mode>("search")
 
   const [title, setTitle] = useState("")
   const [artist, setArtist] = useState("")
@@ -28,7 +40,22 @@ export function AddTrackForm() {
   const [error, setError] = useState<string | null>(null)
   const [eraManual, setEraManual] = useState(false)
 
+  const [query, setQuery] = useState("")
+  const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle")
+  const [searchResults, setSearchResults] = useState<DiscoverVideo[]>([])
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [searchErrorCode, setSearchErrorCode] = useState<string | null>(null)
+  const searchSeq = useRef(0)
+
   const parsedId = useMemo(() => parseYouTubeId(youtube), [youtube])
+  const vaultYtIds = useMemo(
+    () => new Set(tracks.map((t) => t.youtubeId)),
+    [tracks],
+  )
+  const visibleResults = useMemo(
+    () => searchResults.filter((v) => !vaultYtIds.has(v.youtubeId)),
+    [searchResults, vaultYtIds],
+  )
 
   function setYearAndMaybeEra(next: number) {
     setYear(next)
@@ -37,13 +64,57 @@ export function AddTrackForm() {
     }
   }
 
+  async function runSearch(e?: FormEvent) {
+    e?.preventDefault()
+    const q = query.trim()
+    if (!q) return
+
+    const seq = ++searchSeq.current
+    setSearchStatus("loading")
+    setSearchError(null)
+    setSearchErrorCode(null)
+
+    try {
+      const res = await searchYouTubeVideos(q, vaultYtIds)
+      if (searchSeq.current !== seq) return
+      setSearchResults(res.items)
+      setSearchStatus("ready")
+    } catch (err) {
+      if (searchSeq.current !== seq) return
+      if (err instanceof DiscoverError) {
+        setSearchError(err.message)
+        setSearchErrorCode(err.code)
+      } else {
+        setSearchError("Could not search YouTube")
+        setSearchErrorCode("upstream")
+      }
+      setSearchStatus("error")
+    }
+  }
+
+  function selectVideo(video: DiscoverVideo) {
+    setYoutube(video.youtubeId)
+    const guessed = guessTitleArtist(video.title, video.channelTitle)
+    setTitle(guessed.title)
+    setArtist(guessed.artist)
+  }
+
+  const showManualFallback =
+    searchErrorCode === "quota_exceeded" ||
+    searchErrorCode === "disabled" ||
+    searchErrorCode === "missing_key"
+
   function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
 
     const youtubeId = parseYouTubeId(youtube)
     if (!youtubeId) {
-      setError("Paste a valid YouTube URL or 11-character video ID.")
+      setError(
+        mode === "search"
+          ? "Search and pick a video, or switch to Paste link."
+          : "Paste a valid YouTube URL or 11-character video ID.",
+      )
       return
     }
     if (!title.trim() || !artist.trim()) {
@@ -62,6 +133,9 @@ export function AddTrackForm() {
     setYoutube("")
     setNotes("")
     setEraManual(false)
+    setQuery("")
+    setSearchResults([])
+    setSearchStatus("idle")
   }
 
   return (
@@ -79,13 +153,124 @@ export function AddTrackForm() {
           Close
         </button>
       </div>
-      <p className="mb-4 text-xs leading-relaxed text-vault-muted">
-        Find a video on YouTube → copy the link → paste below. Title and artist
-        stay in your hands so the vault stays curated.
+      <p className="mb-3 text-xs leading-relaxed text-vault-muted">
+        Search YouTube and pick a result, or paste a link directly. Title and
+        artist stay editable so the vault stays curated.
       </p>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <label className="flex flex-col gap-1 sm:col-span-2 lg:col-span-1">
+      <div className="mb-3 inline-flex gap-1 rounded-lg border border-vault-border bg-vault-elevated/50 p-0.5 text-xs">
+        <button
+          type="button"
+          onClick={() => setMode("search")}
+          className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+            mode === "search"
+              ? "bg-vault-amber text-stone-950"
+              : "text-vault-muted hover:text-vault-text"
+          }`}
+        >
+          Search YouTube
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("manual")}
+          className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+            mode === "manual"
+              ? "bg-vault-amber text-stone-950"
+              : "text-vault-muted hover:text-vault-text"
+          }`}
+        >
+          Paste link
+        </button>
+      </div>
+
+      {mode === "search" && (
+        <div className="mb-4">
+          <div className="flex gap-2">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  runSearch()
+                }
+              }}
+              placeholder="Charli XCX Vroom Vroom"
+              className="flex-1 rounded-lg border border-vault-border bg-vault-elevated px-3 py-2 text-sm focus:border-vault-amber focus:outline-none"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button
+              type="button"
+              onClick={() => runSearch()}
+              disabled={!query.trim() || searchStatus === "loading"}
+              className="shrink-0 rounded-lg border border-vault-border px-3 py-2 text-sm font-medium text-vault-text hover:border-vault-amber disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {searchStatus === "loading" ? "Searching…" : "Search"}
+            </button>
+          </div>
+
+          {searchStatus === "error" && (
+            <div className="mt-2 rounded-lg border border-vault-red/30 bg-vault-red/5 px-3 py-2 text-xs text-vault-red">
+              <p>{searchError}</p>
+              {showManualFallback && (
+                <button
+                  type="button"
+                  onClick={() => setMode("manual")}
+                  className="mt-1 underline underline-offset-2 hover:text-vault-text"
+                >
+                  Paste a YouTube link instead
+                </button>
+              )}
+            </div>
+          )}
+
+          {searchStatus === "ready" && visibleResults.length === 0 && (
+            <p className="mt-2 text-xs text-vault-muted">
+              No new results. Try a different search, or paste a link
+              instead.
+            </p>
+          )}
+
+          {visibleResults.length > 0 && (
+            <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+              {visibleResults.map((v) => {
+                const isSelected = parsedId === v.youtubeId
+                return (
+                  <button
+                    type="button"
+                    key={v.youtubeId}
+                    onClick={() => selectVideo(v)}
+                    className={`flex items-center gap-2 rounded-lg border p-1.5 text-left text-xs transition-colors ${
+                      isSelected
+                        ? "border-vault-amber bg-vault-amber/5"
+                        : "border-vault-border hover:border-vault-amber/50"
+                    }`}
+                  >
+                    <img
+                      src={v.thumbnailUrl}
+                      alt=""
+                      className="h-10 w-[4.5rem] shrink-0 rounded object-cover"
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-vault-text">
+                        {v.title}
+                      </span>
+                      <span className="block truncate text-vault-muted">
+                        {v.channelTitle}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {mode === "manual" && (
+        <label className="mb-4 flex flex-col gap-1">
           <span className="text-xs text-vault-muted">YouTube URL or ID *</span>
           <input
             required
@@ -101,33 +286,28 @@ export function AddTrackForm() {
               Not a recognized YouTube link yet
             </span>
           )}
-          {parsedId && (
-            <span className="font-mono text-[11px] text-vault-green">
-              ID {parsedId}
-            </span>
-          )}
         </label>
+      )}
 
-        {parsedId ? (
-          <div className="flex items-end sm:col-span-2 lg:col-span-2">
-            <div className="flex w-full items-center gap-3 rounded-lg border border-vault-border/80 bg-vault-elevated/50 p-2">
-              <div className="relative h-14 w-[6.25rem] shrink-0 overflow-hidden rounded bg-black">
-                <img
-                  src={youtubeThumbUrl(parsedId)}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              </div>
-              <div className="min-w-0 text-xs text-vault-muted">
-                <p className="font-medium text-vault-text">Preview ready</p>
-                <p className="mt-0.5">
-                  Fill title & artist, then add. Playback uses this embed.
-                </p>
-              </div>
-            </div>
+      {parsedId && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-vault-border/80 bg-vault-elevated/50 p-2">
+          <div className="relative h-14 w-[6.25rem] shrink-0 overflow-hidden rounded bg-black">
+            <img
+              src={youtubeThumbUrl(parsedId)}
+              alt=""
+              className="h-full w-full object-cover"
+            />
           </div>
-        ) : null}
+          <div className="min-w-0 text-xs text-vault-muted">
+            <p className="font-medium text-vault-text">Preview ready</p>
+            <p className="mt-0.5">
+              Fill title & artist, then add. Playback uses this embed.
+            </p>
+          </div>
+        </div>
+      )}
 
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="flex flex-col gap-1">
           <span className="text-xs text-vault-muted">Title *</span>
           <input

@@ -180,11 +180,34 @@ function buildSearchQuery(
 }
 
 /**
- * Run similar search. Never calls Google when disabled or quota circuit is open.
+ * Heuristic for "this looks like just an artist name" (e.g. "Charli XCX")
+ * rather than a specific song search (e.g. "Charli XCX Boys 1999"). Short,
+ * digit-free queries bias toward the artist's most popular tracks.
  */
-export async function handleSimilarSearch(
-  params: URLSearchParams,
+function looksLikeArtistQuery(q: string): boolean {
+  const words = q.trim().split(/\s+/).filter(Boolean)
+  return words.length > 0 && words.length <= 3 && !/\d/.test(q)
+}
+
+function parseExcludeIds(raw: string): Set<string> {
+  return new Set(
+    raw
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => /^[\w-]{11}$/.test(id)),
+  )
+}
+
+/**
+ * Call YouTube Data API search.list for `q`, mapping results and quota
+ * errors the same way regardless of how the query was built. Never calls
+ * Google when disabled or the quota circuit is open.
+ */
+async function runYouTubeSearch(
+  q: string,
+  exclude: Set<string>,
   env: DiscoveryEnv,
+  order: "relevance" | "viewCount" = "relevance",
 ): Promise<SimilarSearchResult> {
   if (parseFlagOff(env.YOUTUBE_DISCOVERY_ENABLED)) {
     return disabledResult("disabled")
@@ -206,28 +229,6 @@ export async function handleSimilarSearch(
     return disabledResult("quota_exceeded")
   }
 
-  const artist = (params.get("artist") ?? "").trim().slice(0, 120)
-  const title = (params.get("title") ?? "").trim().slice(0, 120)
-  const genre = (params.get("genre") ?? "").trim().slice(0, 40)
-  const year = (params.get("year") ?? "").trim().slice(0, 4)
-  const excludeRaw = (params.get("exclude") ?? "").trim().slice(0, 800)
-
-  if (!artist && !title) {
-    return {
-      status: 400,
-      body: { error: "artist or title is required", code: "bad_request" },
-    }
-  }
-
-  const exclude = new Set(
-    excludeRaw
-      .split(",")
-      .map((id) => id.trim())
-      .filter((id) => /^[\w-]{11}$/.test(id)),
-  )
-
-  const q = buildSearchQuery(artist, title, genre, year)
-
   const ytUrl = new URL("https://www.googleapis.com/youtube/v3/search")
   ytUrl.searchParams.set("part", "snippet")
   ytUrl.searchParams.set("type", "video")
@@ -236,6 +237,7 @@ export async function handleSimilarSearch(
   ytUrl.searchParams.set("videoEmbeddable", "true")
   ytUrl.searchParams.set("videoCategoryId", "10") // Music
   ytUrl.searchParams.set("safeSearch", "none")
+  ytUrl.searchParams.set("order", order)
   ytUrl.searchParams.set("key", apiKey)
 
   let upstream: Response
@@ -317,4 +319,62 @@ export async function handleSimilarSearch(
     // Cut quota burn when the same track is opened repeatedly
     cacheControl: "public, max-age=1800",
   }
+}
+
+/**
+ * Run "similar to this track" search, built from a seed's artist/title/genre/year.
+ */
+export async function handleSimilarSearch(
+  params: URLSearchParams,
+  env: DiscoveryEnv,
+): Promise<SimilarSearchResult> {
+  const artist = (params.get("artist") ?? "").trim().slice(0, 120)
+  const title = (params.get("title") ?? "").trim().slice(0, 120)
+  const genre = (params.get("genre") ?? "").trim().slice(0, 40)
+  const year = (params.get("year") ?? "").trim().slice(0, 4)
+  const excludeRaw = (params.get("exclude") ?? "").trim().slice(0, 800)
+
+  if (!artist && !title) {
+    return {
+      status: 400,
+      body: { error: "artist or title is required", code: "bad_request" },
+    }
+  }
+
+  const exclude = parseExcludeIds(excludeRaw)
+  const q = buildSearchQuery(artist, title, genre, year)
+  return runYouTubeSearch(q, exclude, env)
+}
+
+/**
+ * Run a literal free-text video search (e.g. "Charli XCX Vroom Vroom"),
+ * used by the add-track flow instead of the "similar to a seed" search above.
+ */
+export async function handleTrackSearch(
+  params: URLSearchParams,
+  env: DiscoveryEnv,
+): Promise<SimilarSearchResult> {
+  const q = (params.get("q") ?? "").trim().slice(0, 150)
+  const excludeRaw = (params.get("exclude") ?? "").trim().slice(0, 800)
+
+  if (!q) {
+    return {
+      status: 400,
+      body: { error: "q is required", code: "bad_request" },
+    }
+  }
+
+  const exclude = parseExcludeIds(excludeRaw)
+
+  // Bare artist name: bias toward their most-viewed (i.e. best-known) tracks
+  // instead of raw relevance, which mixes in remixes, covers, and deep cuts.
+  const artistLike = looksLikeArtistQuery(q)
+  const searchQuery = artistLike ? `${q} top songs` : q
+  const order = artistLike ? "viewCount" : "relevance"
+
+  const result = await runYouTubeSearch(searchQuery, exclude, env, order)
+  if (result.status === 200) {
+    result.body.query = q
+  }
+  return result
 }

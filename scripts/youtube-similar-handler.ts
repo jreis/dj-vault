@@ -1,10 +1,11 @@
 /**
- * Dev re-export of the shared YouTube similar-search handler.
- * Vite middleware and CF Pages Function share one implementation.
+ * Dev re-export of the shared YouTube search handlers.
+ * Vite middleware and CF Pages Functions share one implementation.
  */
 
 export {
   handleSimilarSearch,
+  handleTrackSearch,
   type DiscoveryEnv,
   type SimilarSearchResult,
 } from "../functions/_lib/youtubeSimilar.ts"

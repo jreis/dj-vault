@@ -1,13 +1,16 @@
 import { defineConfig, loadEnv, type Plugin } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
-import { handleSimilarSearch } from "./scripts/youtube-similar-handler.ts"
+import {
+  handleSimilarSearch,
+  handleTrackSearch,
+} from "./scripts/youtube-similar-handler.ts"
 import {
   createDevShare,
   getDevShare,
 } from "./scripts/share-dev-store.ts"
 
-/** Dev-only /api/youtube/similar so local SPA can discover without wrangler. */
+/** Dev-only /api/youtube/similar + /api/youtube/search so local SPA can discover without wrangler. */
 function youtubeSimilarDevApi(env: {
   YOUTUBE_API_KEY?: string
   YOUTUBE_DISCOVERY_ENABLED?: string
@@ -21,7 +24,7 @@ function youtubeSimilarDevApi(env: {
           return
         }
         const path = req.url.split("?")[0]
-        if (path !== "/api/youtube/similar") {
+        if (path !== "/api/youtube/similar" && path !== "/api/youtube/search") {
           next()
           return
         }
@@ -29,7 +32,10 @@ function youtubeSimilarDevApi(env: {
         try {
           const host = req.headers.host ?? "localhost"
           const url = new URL(req.url, `http://${host}`)
-          const result = await handleSimilarSearch(url.searchParams, env)
+          const result =
+            path === "/api/youtube/similar"
+              ? await handleSimilarSearch(url.searchParams, env)
+              : await handleTrackSearch(url.searchParams, env)
           res.statusCode = result.status
           res.setHeader("Content-Type", "application/json; charset=utf-8")
           if (result.cacheControl) {

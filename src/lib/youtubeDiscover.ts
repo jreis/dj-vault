@@ -175,3 +175,54 @@ export async function fetchSimilarVideos(
     query: data.query ?? "",
   }
 }
+
+/**
+ * Search YouTube by a literal free-text query (artist, title, or both) for
+ * the add-track flow. Shares the same server-side quota budget and
+ * client-side backoff as fetchSimilarVideos.
+ */
+export async function searchYouTubeVideos(
+  query: string,
+  exclude: Set<string>,
+  signal?: AbortSignal,
+): Promise<{ items: DiscoverVideo[]; query: string }> {
+  if (isDiscoverClientBlocked()) {
+    throw new DiscoverError(
+      "YouTube search is paused (quota or disabled). Try again after the daily reset, or paste a YouTube link.",
+      "quota_exceeded",
+    )
+  }
+
+  const params = new URLSearchParams({
+    q: query,
+    exclude: [...exclude].slice(0, 60).join(","),
+  })
+
+  let res: Response
+  try {
+    res = await fetch(`/api/youtube/search?${params}`, { signal })
+  } catch (e) {
+    if (signal?.aborted) throw e
+    throw new DiscoverError("Network error reaching search API", "network")
+  }
+
+  let data: DiscoverApiResponse
+  try {
+    data = (await res.json()) as DiscoverApiResponse
+  } catch {
+    throw new DiscoverError("Bad response from search API", "upstream")
+  }
+
+  if (!res.ok) {
+    const code = data.code ?? "upstream"
+    if (code === "quota_exceeded" || code === "disabled") {
+      blockDiscoverForQuotaDay()
+    }
+    throw new DiscoverError(data.error ?? `Search failed (${res.status})`, code)
+  }
+
+  return {
+    items: data.items ?? [],
+    query: data.query ?? "",
+  }
+}
