@@ -227,26 +227,28 @@ export function TrackTable({ tracks }: TrackTableProps) {
       {/* Desktop table */}
       <div className="hidden overflow-hidden rounded-xl border border-vault-border bg-vault-surface shadow-lg md:block">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+          <table className="w-full table-fixed border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-vault-border bg-vault-elevated/80 text-xs uppercase tracking-wide text-vault-muted">
-                <th className="w-16 px-2 py-2.5 text-center font-medium">
+                <th className="w-14 px-1 py-2.5 text-center font-medium">
                   Vote
                 </th>
-                <th className="px-3 py-2.5 font-medium">Track</th>
-                <th className="hidden px-3 py-2.5 font-medium md:table-cell">
+                <th className="min-w-0 px-3 py-2.5 font-medium">Track</th>
+                <th className="hidden w-28 px-2 py-2.5 font-medium md:table-cell">
                   Genre
                 </th>
-                <th className="hidden px-3 py-2.5 font-medium sm:table-cell">
+                <th className="hidden w-12 px-2 py-2.5 font-medium lg:table-cell">
                   Era
                 </th>
-                <th className="hidden px-3 py-2.5 font-medium xl:table-cell">
+                <th className="hidden w-24 px-2 py-2.5 font-medium xl:table-cell">
                   BPM
                 </th>
-                <th className="hidden px-3 py-2.5 font-medium lg:table-cell">
+                <th className="hidden w-36 px-2 py-2.5 font-medium xl:table-cell">
                   Notes
                 </th>
-                <th className="px-3 py-2.5 text-right font-medium">Actions</th>
+                <th className="w-60 px-2 py-2.5 text-right font-medium">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -304,8 +306,8 @@ export function TrackTable({ tracks }: TrackTableProps) {
                       </div>
                     </td>
 
-                    <td className="px-3 py-2.5 align-middle">
-                      <div className="flex items-center gap-3">
+                    <td className="min-w-0 px-3 py-2.5 align-middle">
+                      <div className="flex min-w-0 items-center gap-3">
                         <div className="relative h-10 w-16 shrink-0 overflow-hidden rounded bg-vault-elevated">
                           <img
                             src={youtubeThumbUrl(track.youtubeId)}
@@ -323,8 +325,8 @@ export function TrackTable({ tracks }: TrackTableProps) {
                             </span>
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 items-center gap-2">
                             <span className="truncate font-medium text-vault-text">
                               {track.title}
                             </span>
@@ -348,17 +350,17 @@ export function TrackTable({ tracks }: TrackTableProps) {
                       </div>
                     </td>
 
-                    <td className="hidden px-3 py-2.5 align-middle md:table-cell">
-                      <span className="rounded-full border border-vault-border bg-vault-elevated px-2 py-0.5 text-xs text-vault-muted">
+                    <td className="hidden px-2 py-2.5 align-middle md:table-cell">
+                      <span className="inline-block max-w-full truncate rounded-full border border-vault-border bg-vault-elevated px-2 py-0.5 text-xs text-vault-muted">
                         {track.genre}
                       </span>
                     </td>
 
-                    <td className="hidden px-3 py-2.5 align-middle font-mono text-vault-muted sm:table-cell">
+                    <td className="hidden px-2 py-2.5 align-middle font-mono text-vault-muted lg:table-cell">
                       {track.era}
                     </td>
 
-                    <td className="hidden px-3 py-2.5 align-middle xl:table-cell">
+                    <td className="hidden px-2 py-2.5 align-middle xl:table-cell">
                       {track.bpm ? (
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm text-vault-blue">
@@ -379,12 +381,12 @@ export function TrackTable({ tracks }: TrackTableProps) {
                       )}
                     </td>
 
-                    <td className="hidden max-w-[12rem] truncate px-3 py-2.5 align-middle text-vault-muted lg:table-cell">
+                    <td className="hidden truncate px-2 py-2.5 align-middle text-vault-muted xl:table-cell">
                       {track.notes || "—"}
                     </td>
 
-                    <td className="px-3 py-2.5 text-right align-middle">
-                      <div className="flex justify-end gap-1">
+                    <td className="px-2 py-2.5 text-right align-middle">
+                      <div className="flex flex-wrap justify-end gap-1">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -426,7 +428,11 @@ export function TrackTable({ tracks }: TrackTableProps) {
                           Similar
                         </button>
                         <div onClick={(e) => e.stopPropagation()}>
-                          <AddToPlaylistMenu trackId={track.id} trackTitle={track.title} />
+                          <AddToPlaylistMenu
+                            trackId={track.id}
+                            trackTitle={track.title}
+                            compact
+                          />
                         </div>
                         <button
                           type="button"

@@ -5,9 +5,15 @@ import { useToastStore } from "../store/useToastStore"
 interface AddToPlaylistMenuProps {
   trackId: string
   trackTitle: string
+  /** Icon-only trigger — use in tight table rows. */
+  compact?: boolean
 }
 
-export function AddToPlaylistMenu({ trackId, trackTitle }: AddToPlaylistMenuProps) {
+export function AddToPlaylistMenu({
+  trackId,
+  trackTitle,
+  compact = false,
+}: AddToPlaylistMenuProps) {
   const allPlaylists = useVaultStore((s) => s.playlists)
   const playlists = allPlaylists.filter((pl) => !pl.curated)
   const addTrackToPlaylist = useVaultStore((s) => s.addTrackToPlaylist)
@@ -44,10 +50,14 @@ export function AddToPlaylistMenu({ trackId, trackTitle }: AddToPlaylistMenuProp
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="rounded-lg border border-vault-border bg-vault-elevated px-2.5 py-1.5 text-xs text-vault-blue hover:border-vault-blue hover:bg-vault-blue/5"
+        className={
+          compact
+            ? "rounded-md border border-vault-border px-2 py-1 text-xs text-vault-blue hover:border-vault-blue hover:text-vault-blue"
+            : "rounded-lg border border-vault-border bg-vault-elevated px-2.5 py-1.5 text-xs text-vault-blue hover:border-vault-blue hover:bg-vault-blue/5"
+        }
         title="Add to playlist"
       >
-        + Playlist
+        {compact ? "+" : "+ Playlist"}
       </button>
 
       {isOpen && (

@@ -6,6 +6,7 @@ import {
 import { youtubeThumbUrl, youtubeWatchUrl } from "../lib/youtube"
 import {
   createYouTubePlayer,
+  setActiveYtPlayer,
   youtubeErrorMessage,
   type YtPlayer,
 } from "../lib/youtubeApi"
@@ -81,6 +82,7 @@ export function Player() {
   // Mount / remount YouTube player when the vault track changes.
   useEffect(() => {
     if (!trackId || !videoId) {
+      setActiveYtPlayer(null)
       playerRef.current?.destroy()
       playerRef.current = null
       wiredTrackIdRef.current = null
@@ -173,6 +175,7 @@ export function Player() {
           return
         }
         playerRef.current = player
+        setActiveYtPlayer(player)
       })
       .catch((err: unknown) => {
         if (cancelled || wiredTrackIdRef.current !== trackId) return
@@ -187,6 +190,7 @@ export function Player() {
       cancelled = true
       if (skipTimer) clearTimeout(skipTimer)
       stopListenTimer()
+      setActiveYtPlayer(null)
       playerRef.current?.destroy()
       playerRef.current = null
     }

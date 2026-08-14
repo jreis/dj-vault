@@ -8,7 +8,19 @@ import {
 } from "../data/seedTracks"
 import { SEED_PLAYLISTS } from "../data/seedPlaylists"
 import { estimateBPM } from "../lib/bpm"
+import { resumeActiveYtPlayer } from "../lib/youtubeApi"
 import type { Filters, Genre, Playlist, Track } from "../types"
+
+/** YouTube discovery result ready to become a guest (or existing) vault track. */
+export interface DiscoveredTrackInput {
+  youtubeId: string
+  title: string
+  artist: string
+  genre: Genre
+  era: Track["era"]
+  year: number
+  notes?: string
+}
 
 function uid(prefix = "t"): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
@@ -55,6 +67,11 @@ interface VaultState {
     year: number
     notes?: string
   }) => Track
+  /**
+   * Add discovered YouTube videos as ephemeral guest tracks (not persisted).
+   * Returns resolved ids (existing library/guest id if the video is already known).
+   */
+  ingestDiscoveredTracks: (inputs: DiscoveredTrackInput[]) => string[]
   removeTrack: (id: string) => void
   vote: (id: string, delta: 1 | -1) => void
   updateNotes: (id: string, notes: string) => void
@@ -558,8 +575,58 @@ export const useVaultStore = create<VaultState>()(
         get().playSet(valid)
       },
 
+      ingestDiscoveredTracks: (inputs) => {
+        if (inputs.length === 0) return []
+        const s = get()
+        const byYt = new Map<string, Track>()
+        for (const t of s.tracks) byYt.set(t.youtubeId, t)
+        for (const t of s.guestTracks) byYt.set(t.youtubeId, t)
+
+        const resolved: string[] = []
+        const newGuests: Track[] = []
+
+        for (const input of inputs) {
+          const existing = byYt.get(input.youtubeId)
+          if (existing) {
+            resolved.push(existing.id)
+            continue
+          }
+          const title = input.title.trim()
+          const artist = input.artist.trim()
+          const notes = input.notes?.trim() ?? ""
+          const addedAt = new Date().toISOString()
+          const draft: Track = {
+            id: uid("g"),
+            title,
+            artist,
+            youtubeId: input.youtubeId,
+            genre: input.genre,
+            era: input.era,
+            year: input.year,
+            score: 0,
+            notes,
+            addedAt,
+          }
+          const track: Track = { ...draft, bpm: estimateBPM(draft) }
+          newGuests.push(track)
+          byYt.set(track.youtubeId, track)
+          resolved.push(track.id)
+        }
+
+        if (newGuests.length > 0) {
+          set({ guestTracks: [...s.guestTracks, ...newGuests] })
+        }
+        return resolved
+      },
+
       play: (id) => {
+        const prev = get().nowPlayingId
         set({ nowPlayingId: id, selectedId: id })
+        // Same track is already mounted — resume in this click so autoplay
+        // policies treat it as a user gesture (Start Radio, Play on current).
+        if (prev === id) {
+          resumeActiveYtPlayer()
+        }
       },
       stop: () => set({ nowPlayingId: null, setMode: false }),
 

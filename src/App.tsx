@@ -163,7 +163,10 @@ export default function App() {
           >
             <Player />
           </section>
-          <section aria-label="Track library" className="order-2 lg:order-1">
+          <section
+            aria-label="Track library"
+            className="order-2 min-w-0 lg:order-1"
+          >
             <TrackTable tracks={visible} />
           </section>
         </div>

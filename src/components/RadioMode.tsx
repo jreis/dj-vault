@@ -1,90 +1,217 @@
-import { useState, useEffect } from "react"
-import { useVaultStore } from "../store/useVaultStore"
+import { useEffect, useMemo, useRef, useState } from "react"
+import {
+  selectPlaybackTracks,
+  useVaultStore,
+} from "../store/useVaultStore"
 import { findSimilarTracks } from "../lib/similarTracks"
+import {
+  fetchSimilarVideos,
+  guessTitleArtist,
+} from "../lib/youtubeDiscover"
 import { useToastStore } from "../store/useToastStore"
+import type { Track } from "../types"
+
+/** Keep at least this many tracks lined up ahead of now-playing. */
+const QUEUE_FLOOR = 3
+/** Don't pile on more than this in one fill pass. */
+const FILL_BATCH = 5
 
 /**
- * Radio Mode - Endless discovery playback
- * Automatically queues similar tracks when queue is low
+ * Radio Mode - Endless discovery playback.
+ * Starts the seed track immediately, then keeps the queue filled with
+ * similar vault tracks and (when available) YouTube discoveries.
  */
 export function RadioMode() {
   const tracks = useVaultStore((s) => s.tracks)
+  const guestTracks = useVaultStore((s) => s.guestTracks)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
+  const selectedId = useVaultStore((s) => s.selectedId)
   const queue = useVaultStore((s) => s.queue)
+  const play = useVaultStore((s) => s.play)
   const enqueueMany = useVaultStore((s) => s.enqueueMany)
+  const ingestDiscoveredTracks = useVaultStore((s) => s.ingestDiscoveredTracks)
   const showToast = useToastStore((s) => s.show)
 
-  const [radioActive, setRadioActive] = useState(false)
-  const [playedIds, setPlayedIds] = useState<Set<string>>(new Set())
+  const playbackTracks = useMemo(
+    () => selectPlaybackTracks({ tracks, guestTracks }),
+    [tracks, guestTracks],
+  )
 
-  // Auto-queue similar tracks when queue gets low
+  const seed = useMemo(() => {
+    if (nowPlayingId) {
+      const current = playbackTracks.find((t) => t.id === nowPlayingId)
+      if (current) return current
+    }
+    if (selectedId) {
+      const selected = playbackTracks.find((t) => t.id === selectedId)
+      if (selected) return selected
+    }
+    return (
+      [...playbackTracks].sort((a, b) => b.score - a.score)[0] ?? null
+    )
+  }, [nowPlayingId, selectedId, playbackTracks])
+
+  const [radioActive, setRadioActive] = useState(false)
+  const [discovering, setDiscovering] = useState(false)
+  const [discoveredCount, setDiscoveredCount] = useState(0)
+
+  const radioActiveRef = useRef(false)
+  const playedRef = useRef<Set<string>>(new Set())
+  const fetchedForRef = useRef<string | null>(null)
+  const reshuffledForRef = useRef<string | null>(null)
+
+  radioActiveRef.current = radioActive
+
+  function markPlayed(ids: string[]) {
+    for (const id of ids) playedRef.current.add(id)
+    setDiscoveredCount(playedRef.current.size)
+  }
+
+  function queueVaultSimilar(from: Track): number {
+    const state = useVaultStore.getState()
+    const library = selectPlaybackTracks(state)
+    const similar = findSimilarTracks(from, library, 20)
+      .map((m) => m.track)
+      .filter(
+        (t) =>
+          t.id !== from.id &&
+          t.id !== state.nowPlayingId &&
+          !playedRef.current.has(t.id) &&
+          !state.queue.includes(t.id),
+      )
+      .slice(0, FILL_BATCH)
+    if (similar.length === 0) return 0
+    const ids = similar.map((t) => t.id)
+    markPlayed(ids)
+    enqueueMany(ids)
+    return ids.length
+  }
+
+  async function queueYoutubeSimilar(
+    from: Track,
+    signal: AbortSignal,
+  ): Promise<number> {
+    setDiscovering(true)
+    try {
+      const library = selectPlaybackTracks(useVaultStore.getState())
+      const { items } = await fetchSimilarVideos(from, library, signal)
+      if (signal.aborted || !radioActiveRef.current) return 0
+
+      const room = Math.max(
+        0,
+        FILL_BATCH - useVaultStore.getState().queue.length,
+      )
+      if (room === 0) return 0
+
+      const inputs = items.slice(0, room + 3).map((v) => {
+        const { title, artist } = guessTitleArtist(v.title, v.channelTitle)
+        return {
+          youtubeId: v.youtubeId,
+          title,
+          artist,
+          genre: from.genre,
+          era: from.era,
+          year: from.year,
+          notes: `Radio · similar to ${from.artist} — ${from.title}`,
+        }
+      })
+      const ids = ingestDiscoveredTracks(inputs).filter((id) => {
+        const state = useVaultStore.getState()
+        return (
+          id !== from.id &&
+          id !== state.nowPlayingId &&
+          !playedRef.current.has(id) &&
+          !state.queue.includes(id)
+        )
+      })
+      if (ids.length === 0) return 0
+      const next = ids.slice(0, room)
+      markPlayed(next)
+      enqueueMany(next)
+      return next.length
+    } catch {
+      return 0
+    } finally {
+      if (!signal.aborted) setDiscovering(false)
+    }
+  }
+
+  // Keep the queue filled while radio is on. Refs hold played/fetched
+  // identity so this cannot loop on a new Set() each render.
   useEffect(() => {
     if (!radioActive || !nowPlayingId) return
 
-    // Keep queue filled with 3-5 tracks
-    if (queue.length >= 3) return
+    const current = useVaultStore.getState().resolveTrack(nowPlayingId)
+    if (!current) return
 
-    const currentTrack = tracks.find((t) => t.id === nowPlayingId)
-    if (!currentTrack) return
+    playedRef.current.add(nowPlayingId)
 
-    // Find similar tracks we haven't played yet
-    const similar = findSimilarTracks(currentTrack, tracks, 20)
-      .filter((m) => !playedIds.has(m.track.id))
-      .filter((m) => m.track.id !== nowPlayingId)
-      .filter((m) => !queue.includes(m.track.id))
-      .slice(0, 5)
+    if (queue.length >= QUEUE_FLOOR) return
 
-    if (similar.length === 0) {
-      // Ran out of similar tracks, start over
-      setPlayedIds(new Set([nowPlayingId]))
+    queueVaultSimilar(current)
+
+    if (useVaultStore.getState().queue.length >= QUEUE_FLOOR) return
+
+    if (fetchedForRef.current === nowPlayingId) {
+      // Already tried YouTube for this seed. Reshuffle vault once so
+      // radio never sits on an empty queue.
+      if (
+        useVaultStore.getState().queue.length === 0 &&
+        reshuffledForRef.current !== nowPlayingId
+      ) {
+        reshuffledForRef.current = nowPlayingId
+        playedRef.current = new Set([nowPlayingId])
+        queueVaultSimilar(current)
+      }
       return
     }
 
-    const idsToQueue = similar.map((m) => m.track.id)
-    enqueueMany(idsToQueue)
-
-    // Mark as played
-    setPlayedIds((prev) => {
-      const next = new Set(prev)
-      idsToQueue.forEach((id) => next.add(id))
-      return next
-    })
-  }, [radioActive, nowPlayingId, queue.length, tracks, enqueueMany, playedIds])
-
-  // Track what's been played
-  useEffect(() => {
-    if (!radioActive || !nowPlayingId) return
-    setPlayedIds((prev) => new Set(prev).add(nowPlayingId))
-  }, [radioActive, nowPlayingId])
+    fetchedForRef.current = nowPlayingId
+    const ac = new AbortController()
+    void queueYoutubeSimilar(current, ac.signal)
+    return () => {
+      ac.abort()
+      setDiscovering(false)
+    }
+  }, [radioActive, nowPlayingId, queue.length])
 
   function startRadio() {
-    if (!nowPlayingId) {
-      showToast("Play a track first to start radio mode", "info")
+    if (!seed) {
+      showToast("Add a track first to start radio", "info")
       return
     }
 
-    const currentTrack = tracks.find((t) => t.id === nowPlayingId)
-    if (!currentTrack) return
-
+    playedRef.current = new Set([seed.id])
+    fetchedForRef.current = null
+    reshuffledForRef.current = null
+    setDiscoveredCount(1)
     setRadioActive(true)
-    setPlayedIds(new Set([nowPlayingId]))
-    showToast(
-      `Radio mode started - discovering music like ${currentTrack.artist}`,
-      "success"
-    )
+    radioActiveRef.current = true
+
+    // User gesture: start or resume the seed so something actually plays.
+    play(seed.id)
+    queueVaultSimilar(seed)
+
+    showToast(`Radio started — music like ${seed.artist}`, "success")
+    queueMicrotask(() => {
+      document
+        .querySelector('[aria-label="Player and queue"]')
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    })
   }
 
   function stopRadio() {
     setRadioActive(false)
-    setPlayedIds(new Set())
+    radioActiveRef.current = false
+    setDiscovering(false)
+    playedRef.current = new Set()
+    fetchedForRef.current = null
+    reshuffledForRef.current = null
+    setDiscoveredCount(0)
     showToast("Radio mode stopped", "info")
   }
 
-  const currentTrack = nowPlayingId
-    ? tracks.find((t) => t.id === nowPlayingId)
-    : null
-
-  if (!currentTrack) return null
+  const seedLabel = seed ? `${seed.artist} — ${seed.title}` : null
 
   return (
     <div className="overflow-hidden rounded-xl border border-vault-border bg-vault-surface shadow-lg">
@@ -94,7 +221,11 @@ export function RadioMode() {
             Radio Mode
           </h2>
           <p className="mt-0.5 text-[10px] text-vault-muted/70">
-            Endless discovery playback
+            {radioActive
+              ? "Endless discovery playback"
+              : seedLabel
+                ? `Starts from ${seedLabel}`
+                : "Endless discovery playback"}
           </p>
         </div>
         {radioActive ? (
@@ -113,14 +244,15 @@ export function RadioMode() {
           <button
             type="button"
             onClick={startRadio}
-            className="rounded-lg bg-vault-amber px-3 py-1.5 text-xs font-medium text-stone-950 hover:bg-amber-400"
+            disabled={!seed}
+            className="rounded-lg bg-vault-amber px-3 py-1.5 text-xs font-medium text-stone-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Start Radio
           </button>
         )}
       </div>
 
-      {radioActive && (
+      {radioActive && seed && (
         <div className="space-y-2 p-3">
           <div className="rounded-lg border border-vault-amber/30 bg-vault-amber/5 p-3">
             <div className="flex items-start gap-2">
@@ -135,11 +267,12 @@ export function RadioMode() {
                 <p className="mt-1 text-[11px] text-vault-muted">
                   Playing music similar to{" "}
                   <span className="font-medium text-vault-text">
-                    {currentTrack.artist}
+                    {seed.artist}
                   </span>
                 </p>
                 <p className="mt-1 text-[10px] text-vault-muted/70">
-                  {playedIds.size} tracks discovered • {queue.length} queued
+                  {discoveredCount} tracks discovered · {queue.length} queued
+                  {discovering ? " · finding more…" : ""}
                 </p>
               </div>
             </div>
@@ -148,8 +281,8 @@ export function RadioMode() {
           <div className="rounded-lg bg-vault-elevated/50 p-2.5 text-[11px] text-vault-muted">
             <p>
               <span className="font-semibold text-vault-text">How it works:</span>{" "}
-              Radio mode automatically finds and queues similar tracks as you
-              listen, creating an endless discovery experience.
+              Radio starts the seed track, then automatically finds and queues
+              similar songs as you listen.
             </p>
           </div>
         </div>

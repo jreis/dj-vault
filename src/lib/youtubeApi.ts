@@ -54,6 +54,27 @@ export interface YtPlayer {
   getPlayerState: () => number
 }
 
+/** The Player currently mounted in the page — used to resume from a user gesture. */
+let activePlayer: YtPlayer | null = null
+
+export function setActiveYtPlayer(player: YtPlayer | null): void {
+  activePlayer = player
+}
+
+/**
+ * Call playVideo() on the mounted player.
+ * Must run in the same turn as a click so the browser treats it as a gesture.
+ */
+export function resumeActiveYtPlayer(): boolean {
+  if (!activePlayer) return false
+  try {
+    activePlayer.playVideo()
+    return true
+  } catch {
+    return false
+  }
+}
+
 interface YtPlayerConfig {
   videoId: string
   width?: string | number
@@ -144,7 +165,15 @@ export async function createYouTubePlayer(
           : {}),
       },
       events: {
-        onReady: () => {
+        onReady: (e) => {
+          // autoplay=1 is often ignored; an explicit play() is more reliable.
+          if (options.autoplay !== false) {
+            try {
+              e.target.playVideo()
+            } catch {
+              // Browser may still block until a later user gesture.
+            }
+          }
           options.onReady?.()
           resolve(player)
         },
