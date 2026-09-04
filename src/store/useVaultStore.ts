@@ -93,6 +93,8 @@ interface VaultState {
   vote: (id: string, delta: 1 | -1) => void
   updateNotes: (id: string, notes: string) => void
   resetToSeed: () => void
+  /** Empty the library and stop playback. Persists; seeds are not re-injected. */
+  clearLibrary: () => void
   /** Adopt a password-published catalog (live site) or bundled seeds. */
   applyPublishedSeeds: (seeds: Track[] | null) => void
   importTracks: (tracks: Track[], mode: "merge" | "replace") => void
@@ -292,7 +294,25 @@ export const useVaultStore = create<VaultState>()(
           nowPlayingId: null,
           selectedId: seeds[0]?.id ?? null,
           filters: defaultFilters,
+          similarToId: null,
+          setMode: false,
+          awaitingPublishedSeeds: false,
         })
+      },
+
+      clearLibrary: () => {
+        set((s) => ({
+          tracks: [],
+          playlists: prunePlaylistIds(s.playlists, new Set()),
+          guestTracks: [],
+          guestSetName: null,
+          queue: [],
+          nowPlayingId: null,
+          selectedId: null,
+          similarToId: null,
+          setMode: false,
+          awaitingPublishedSeeds: false,
+        }))
       },
 
       applyPublishedSeeds: (seeds) => {
@@ -308,6 +328,13 @@ export const useVaultStore = create<VaultState>()(
               awaitingPublishedSeeds: false,
               tracks: catalog,
               selectedId: catalog[0]?.id ?? s.selectedId,
+            }
+          }
+          // An intentionally empty vault stays empty; Reset seed still uses catalog.
+          if (s.tracks.length === 0) {
+            return {
+              publishedSeeds: catalog,
+              awaitingPublishedSeeds: false,
             }
           }
           return {
@@ -868,11 +895,13 @@ export const useVaultStore = create<VaultState>()(
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<VaultState>
-        const hadPersistedTracks =
-          Array.isArray(p.tracks) && p.tracks.length > 0
-        const rawTracks = hadPersistedTracks ? p.tracks! : current.tracks
+        const tracksPersisted = Array.isArray(p.tracks)
+        const rawTracks = tracksPersisted ? p.tracks! : current.tracks
+        // Empty persisted library is intentional — do not re-inject seeds.
         const tracks = ensureTrackBPMs(
-          ensureSeedTracks(repairDeadYoutubeIds(rawTracks)),
+          rawTracks.length === 0
+            ? rawTracks
+            : ensureSeedTracks(repairDeadYoutubeIds(rawTracks)),
         )
 
         const trackIds = new Set(tracks.map((t) => t.id))
@@ -910,7 +939,7 @@ export const useVaultStore = create<VaultState>()(
           guestTracks: [],
           guestSetName: null,
           publishedSeeds: null,
-          awaitingPublishedSeeds: !hadPersistedTracks,
+          awaitingPublishedSeeds: !tracksPersisted,
           nowPlayingId,
           queue,
           filters: p.filters

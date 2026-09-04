@@ -20,21 +20,29 @@ export function TrackTable({ tracks }: TrackTableProps) {
   const setSimilarTo = useVaultStore((s) => s.setSimilarTo)
   const similarToId = useVaultStore((s) => s.similarToId)
   const searchQuery = useVaultStore((s) => s.filters.query)
+  const libraryCount = useVaultStore((s) => s.tracks.length)
 
   if (tracks.length === 0) {
     const query = searchQuery.trim()
+    const vaultEmpty = libraryCount === 0
     return (
       <div className="rounded-xl border border-dashed border-vault-border bg-vault-surface px-6 py-16 text-center">
         <p className="text-lg text-vault-amber/40" aria-hidden>
           ⌕
         </p>
         <p className="mt-2 font-medium text-vault-text">
-          {query ? `No vault tracks for “${query}”` : "No tracks match"}
+          {vaultEmpty
+            ? "Vault is empty"
+            : query
+              ? `No vault tracks for “${query}”`
+              : "No tracks match"}
         </p>
         <p className="mt-1 text-sm text-vault-muted">
-          {query
-            ? "Search YouTube to add it, or clear filters."
-            : "Clear search or filters, or add a track with a YouTube link."}
+          {vaultEmpty
+            ? "Add a track, search YouTube, or restore the starter library with Reset seed."
+            : query
+              ? "Search YouTube to add it, or clear filters."
+              : "Clear search or filters, or add a track with a YouTube link."}
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           {query && (
@@ -48,13 +56,15 @@ export function TrackTable({ tracks }: TrackTableProps) {
               Search YouTube for “{query}”
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => useVaultStore.getState().clearFilters()}
-            className="rounded-lg border border-vault-border px-3 py-1.5 text-xs text-vault-muted hover:border-vault-amber hover:text-vault-amber"
-          >
-            Clear filters
-          </button>
+          {!vaultEmpty && (
+            <button
+              type="button"
+              onClick={() => useVaultStore.getState().clearFilters()}
+              className="rounded-lg border border-vault-border px-3 py-1.5 text-xs text-vault-muted hover:border-vault-amber hover:text-vault-amber"
+            >
+              Clear filters
+            </button>
+          )}
           <button
             type="button"
             onClick={() => useVaultStore.getState().setShowAddForm(true)}

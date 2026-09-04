@@ -32,6 +32,7 @@ export function Toolbar() {
   const queue = useVaultStore((s) => s.queue)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const resetToSeed = useVaultStore((s) => s.resetToSeed)
+  const clearLibrary = useVaultStore((s) => s.clearLibrary)
   const importTracks = useVaultStore((s) => s.importTracks)
   const applyPublishedSeeds = useVaultStore((s) => s.applyPublishedSeeds)
   const publishedSeeds = useVaultStore((s) => s.publishedSeeds)
@@ -266,6 +267,25 @@ export function Toolbar() {
           className="rounded-lg border border-vault-border px-2.5 py-1.5 text-vault-muted hover:border-vault-red hover:text-vault-red"
         >
           Reset seed
+        </button>
+        <button
+          type="button"
+          disabled={tracks.length === 0}
+          onClick={() => {
+            if (
+              confirm(
+                `Clear all ${tracks.length} track${tracks.length === 1 ? "" : "s"} from the vault? Playback will stop. Playlists keep their names but lose these tracks. Export first if you want a backup. Reset seed restores the starter library.`,
+              )
+            ) {
+              clearLibrary()
+              clearShareHash()
+              showToast("Vault cleared", "info")
+            }
+          }}
+          className="rounded-lg border border-vault-border px-2.5 py-1.5 text-vault-muted hover:border-vault-red hover:text-vault-red disabled:cursor-not-allowed disabled:opacity-40"
+          title="Remove every track from the vault"
+        >
+          Clear tracks
         </button>
 
         <span className="ml-auto hidden text-vault-muted/70 lg:inline">
