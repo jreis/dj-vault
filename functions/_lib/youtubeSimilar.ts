@@ -181,12 +181,14 @@ function buildSearchQuery(
 
 /**
  * Heuristic for "this looks like just an artist name" (e.g. "Charli XCX")
- * rather than a specific song search (e.g. "Charli XCX Boys 1999"). Short,
- * digit-free queries bias toward the artist's most popular tracks.
+ * rather than a song search (e.g. "Evanescence About Us"). One- or two-word,
+ * digit-free queries bias toward the artist's most popular tracks. Three or
+ * more words are passed through as a literal search so artist+title queries
+ * are not rewritten to "… top songs".
  */
 function looksLikeArtistQuery(q: string): boolean {
   const words = q.trim().split(/\s+/).filter(Boolean)
-  return words.length > 0 && words.length <= 3 && !/\d/.test(q)
+  return words.length > 0 && words.length <= 2 && !/\d/.test(q)
 }
 
 function parseExcludeIds(raw: string): Set<string> {
