@@ -28,7 +28,7 @@ export function AddTrackForm() {
   const [youtube, setYoutube] = useState("")
   const [genre, setGenre] = useState<Genre>("Metal")
   const [era, setEra] = useState<Era>("90s")
-  const [year, setYear] = useState(1995)
+  const [year, setYear] = useState<number | "">(1995)
   const [notes, setNotes] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [eraManual, setEraManual] = useState(false)
@@ -52,9 +52,9 @@ export function AddTrackForm() {
     [searchResults, vaultYtIds],
   )
 
-  function setYearAndMaybeEra(next: number) {
+  function setYearAndMaybeEra(next: number | "") {
     setYear(next)
-    if (!eraManual && Number.isFinite(next)) {
+    if (!eraManual && typeof next === "number" && Number.isFinite(next)) {
       setEra(eraFromYear(next))
     }
   }
@@ -110,7 +110,7 @@ export function AddTrackForm() {
       artist: artist.trim() || "Unknown",
       genre,
       era,
-      year,
+      year: typeof year === "number" ? year : 1995,
       notes: notes.trim(),
     })
     showToast(`Previewing “${label}” — not in the vault yet`, "info")
@@ -143,7 +143,11 @@ export function AddTrackForm() {
       setError("Title and artist are required.")
       return
     }
-    if (year < 1950 || year > new Date().getFullYear() + 1) {
+    if (
+      typeof year !== "number" ||
+      year < 1950 ||
+      year > new Date().getFullYear() + 1
+    ) {
       setError("Year looks off — check it.")
       return
     }
@@ -396,7 +400,16 @@ export function AddTrackForm() {
             min={1950}
             max={new Date().getFullYear() + 1}
             value={year}
-            onChange={(e) => setYearAndMaybeEra(Number(e.target.value))}
+            onChange={(e) => {
+              const raw = e.target.value
+              if (raw === "") {
+                setYearAndMaybeEra("")
+                return
+              }
+              const parsed = Number(raw)
+              if (!Number.isFinite(parsed)) return
+              setYearAndMaybeEra(parsed)
+            }}
             className="rounded-lg border border-vault-border bg-vault-elevated px-3 py-2 text-sm focus:border-vault-amber focus:outline-none"
           />
         </label>
