@@ -1,23 +1,14 @@
 import { useMemo, useRef, useState, type FormEvent } from "react"
 import { ERAS, GENRES, type Era, type Genre } from "../types"
 import { parseYouTubeId, youtubeThumbUrl } from "../lib/youtube"
+import { eraFromYear, guessTrackMeta } from "../lib/guessTrackMeta"
 import {
   DiscoverError,
-  guessTitleArtist,
   searchYouTubeVideos,
   type DiscoverVideo,
 } from "../lib/youtubeDiscover"
 import { useVaultStore } from "../store/useVaultStore"
 import { useToastStore } from "../store/useToastStore"
-
-function eraFromYear(year: number): Era {
-  if (year < 1980) return "70s"
-  if (year < 1990) return "80s"
-  if (year < 2000) return "90s"
-  if (year < 2010) return "00s"
-  if (year < 2020) return "10s"
-  return "20s"
-}
 
 type Mode = "search" | "manual"
 type SearchStatus = "idle" | "loading" | "ready" | "error"
@@ -40,7 +31,9 @@ export function AddTrackForm() {
   const [error, setError] = useState<string | null>(null)
   const [eraManual, setEraManual] = useState(false)
 
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState(
+    () => useVaultStore.getState().filters.query,
+  )
   const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle")
   const [searchResults, setSearchResults] = useState<DiscoverVideo[]>([])
   const [searchError, setSearchError] = useState<string | null>(null)
@@ -94,9 +87,15 @@ export function AddTrackForm() {
 
   function selectVideo(video: DiscoverVideo) {
     setYoutube(video.youtubeId)
-    const guessed = guessTitleArtist(video.title, video.channelTitle)
+    const guessed = guessTrackMeta({
+      query,
+      videoTitle: video.title,
+      channelTitle: video.channelTitle,
+    })
     setTitle(guessed.title)
     setArtist(guessed.artist)
+    setGenre(guessed.genre)
+    setYearAndMaybeEra(guessed.year)
   }
 
   const showManualFallback =
@@ -196,7 +195,7 @@ export function AddTrackForm() {
                   runSearch()
                 }
               }}
-              placeholder="Charli XCX Vroom Vroom"
+              placeholder="John Coltrane Giant Steps"
               className="flex-1 rounded-lg border border-vault-border bg-vault-elevated px-3 py-2 text-sm focus:border-vault-amber focus:outline-none"
               autoComplete="off"
               spellCheck={false}

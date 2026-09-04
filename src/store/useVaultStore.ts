@@ -56,6 +56,23 @@ interface VaultState {
   setMode: boolean
   /** When set, SimilarTracks panel is open for this track id. */
   similarToId: string | null
+  /**
+   * Vault-search query the user asked to look up on YouTube.
+   * Transient — not persisted. Cleared when filters reset.
+   */
+  youtubeSearchQuery: string | null
+  /** Bumped on each explicit YouTube search so the same query can retry. */
+  youtubeSearchSeq: number
+  /**
+   * Live published seed catalog from GET /api/seed.
+   * Transient — not persisted. Null means use bundled SEED_TRACKS.
+   */
+  publishedSeeds: Track[] | null
+  /**
+   * True when this browser had no persisted library yet, so the first
+   * published catalog should replace the bundled default instead of merging.
+   */
+  awaitingPublishedSeeds: boolean
 
   // track ops
   addTrack: (input: {
@@ -76,6 +93,8 @@ interface VaultState {
   vote: (id: string, delta: 1 | -1) => void
   updateNotes: (id: string, notes: string) => void
   resetToSeed: () => void
+  /** Adopt a password-published catalog (live site) or bundled seeds. */
+  applyPublishedSeeds: (seeds: Track[] | null) => void
   importTracks: (tracks: Track[], mode: "merge" | "replace") => void
 
   // guest / shared set
@@ -125,6 +144,9 @@ interface VaultState {
   clearFilters: () => void
   setShowAddForm: (open: boolean) => void
   setSimilarTo: (id: string | null) => void
+  /** Search YouTube for `query`, or the current vault search if omitted. */
+  requestYoutubeSearch: (query?: string) => void
+  clearYoutubeSearch: () => void
   setSetMode: (open: boolean) => void
   toggleSetMode: () => void
   toggleDarkMode: () => void
@@ -177,6 +199,10 @@ export const useVaultStore = create<VaultState>()(
       showAddForm: false,
       setMode: false,
       similarToId: null,
+      youtubeSearchQuery: null,
+      youtubeSearchSeq: 0,
+      publishedSeeds: null,
+      awaitingPublishedSeeds: false,
 
       resolveTrack: (id) => {
         const s = get()
@@ -256,15 +282,41 @@ export const useVaultStore = create<VaultState>()(
       },
 
       resetToSeed: () => {
+        const seeds = get().publishedSeeds ?? SEED_TRACKS
         set({
-          tracks: SEED_TRACKS,
+          tracks: seeds,
           playlists: [],
           guestTracks: [],
           guestSetName: null,
           queue: [],
           nowPlayingId: null,
-          selectedId: SEED_TRACKS[0]?.id ?? null,
+          selectedId: seeds[0]?.id ?? null,
           filters: defaultFilters,
+        })
+      },
+
+      applyPublishedSeeds: (seeds) => {
+        if (!seeds || seeds.length === 0) {
+          set({ awaitingPublishedSeeds: false })
+          return
+        }
+        const catalog = ensureTrackBPMs(seeds)
+        set((s) => {
+          if (s.awaitingPublishedSeeds) {
+            return {
+              publishedSeeds: catalog,
+              awaitingPublishedSeeds: false,
+              tracks: catalog,
+              selectedId: catalog[0]?.id ?? s.selectedId,
+            }
+          }
+          return {
+            publishedSeeds: catalog,
+            awaitingPublishedSeeds: false,
+            tracks: ensureTrackBPMs(
+              ensureSeedTracks(repairDeadYoutubeIds(s.tracks), catalog),
+            ),
+          }
         })
       },
 
@@ -750,7 +802,16 @@ export const useVaultStore = create<VaultState>()(
       },
 
       setFilters: (partial) => {
-        set((s) => ({ filters: { ...s.filters, ...partial } }))
+        set((s) => {
+          const filters = { ...s.filters, ...partial }
+          const queryChanged =
+            partial.query !== undefined &&
+            partial.query.trim() !== (s.youtubeSearchQuery ?? "")
+          return {
+            filters,
+            ...(queryChanged ? { youtubeSearchQuery: null } : {}),
+          }
+        })
       },
 
       clearFilters: () => {
@@ -760,12 +821,25 @@ export const useVaultStore = create<VaultState>()(
             sortKey: s.filters.sortKey,
             sortDir: s.filters.sortDir,
           },
+          youtubeSearchQuery: null,
         }))
       },
 
       setShowAddForm: (open) => set({ showAddForm: open }),
 
       setSimilarTo: (id) => set({ similarToId: id }),
+
+      requestYoutubeSearch: (query) => {
+        const q = (query ?? get().filters.query).trim()
+        if (!q) return
+        set((s) => ({
+          youtubeSearchQuery: q,
+          youtubeSearchSeq: s.youtubeSearchSeq + 1,
+          filters: { ...s.filters, query: q },
+        }))
+      },
+
+      clearYoutubeSearch: () => set({ youtubeSearchQuery: null }),
 
       setSetMode: (open) => set({ setMode: open }),
 
@@ -794,10 +868,9 @@ export const useVaultStore = create<VaultState>()(
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<VaultState>
-        const rawTracks =
+        const hadPersistedTracks =
           Array.isArray(p.tracks) && p.tracks.length > 0
-            ? p.tracks
-            : current.tracks
+        const rawTracks = hadPersistedTracks ? p.tracks! : current.tracks
         const tracks = ensureTrackBPMs(
           ensureSeedTracks(repairDeadYoutubeIds(rawTracks)),
         )
@@ -836,6 +909,8 @@ export const useVaultStore = create<VaultState>()(
           playlists,
           guestTracks: [],
           guestSetName: null,
+          publishedSeeds: null,
+          awaitingPublishedSeeds: !hadPersistedTracks,
           nowPlayingId,
           queue,
           filters: p.filters

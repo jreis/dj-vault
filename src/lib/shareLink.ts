@@ -30,10 +30,20 @@ const GENRES = new Set([
   "Hard Rock",
   "Nu Metal",
   "Classic Rock",
+  "Jazz",
   "Other",
 ])
 
-const ERAS = new Set(["70s", "80s", "90s", "00s", "10s", "20s"])
+const ERAS = new Set([
+  "50s",
+  "60s",
+  "70s",
+  "80s",
+  "90s",
+  "00s",
+  "10s",
+  "20s",
+])
 
 function toBase64Url(str: string): string {
   const bytes = new TextEncoder().encode(str)

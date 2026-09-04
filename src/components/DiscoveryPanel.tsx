@@ -40,8 +40,12 @@ export function DiscoveryPanel() {
   }
 
   function openYouTubeSearch(artist: string) {
-    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(artist + " music")}`
-    window.open(url, "_blank", "noopener,noreferrer")
+    useVaultStore.getState().requestYoutubeSearch(artist)
+    queueMicrotask(() => {
+      document
+        .getElementById("vault-search")
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    })
   }
 
   if (suggestions.length === 0 && currentSuggestions.length === 0) {
@@ -99,7 +103,7 @@ export function DiscoveryPanel() {
                 Recommended Artists to Explore
               </h3>
               <p className="mb-3 text-[10px] text-vault-muted/70">
-                Click to search on YouTube, then add tracks you like
+                Click to search YouTube in the vault, then add tracks you like
               </p>
               <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-4">
                 {suggestions.slice(0, 12).map((artist) => (
@@ -112,7 +116,7 @@ export function DiscoveryPanel() {
                       copySearchQuery(artist)
                     }}
                     className="group rounded-lg border border-vault-border bg-vault-elevated px-3 py-2 text-left text-xs text-vault-text transition hover:border-vault-amber hover:bg-vault-amber/5"
-                    title="Left-click to search YouTube • Right-click to copy search"
+                    title="Left-click to search in the vault • Right-click to copy search"
                   >
                     <div className="flex items-center justify-between">
                       <span className="truncate font-medium">{artist}</span>

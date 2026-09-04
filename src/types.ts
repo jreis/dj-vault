@@ -6,9 +6,10 @@ export type Genre =
   | "Hard Rock"
   | "Nu Metal"
   | "Classic Rock"
+  | "Jazz"
   | "Other"
 
-export type Era = "70s" | "80s" | "90s" | "00s" | "10s" | "20s"
+export type Era = "50s" | "60s" | "70s" | "80s" | "90s" | "00s" | "10s" | "20s"
 
 export interface Track {
   id: string
@@ -57,7 +58,17 @@ export const GENRES: Genre[] = [
   "Hard Rock",
   "Nu Metal",
   "Classic Rock",
+  "Jazz",
   "Other",
 ]
 
-export const ERAS: Era[] = ["70s", "80s", "90s", "00s", "10s", "20s"]
+export const ERAS: Era[] = [
+  "50s",
+  "60s",
+  "70s",
+  "80s",
+  "90s",
+  "00s",
+  "10s",
+  "20s",
+]

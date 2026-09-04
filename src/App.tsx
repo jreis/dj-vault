@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Header } from "./components/Header"
 import { FilterBar } from "./components/FilterBar"
+import { YoutubeSearchPanel } from "./components/YoutubeSearchPanel"
 import { TrackTable } from "./components/TrackTable"
 import { Player } from "./components/Player"
 import { AddTrackForm } from "./components/AddTrackForm"
@@ -17,6 +18,7 @@ import { FeatureTour } from "./components/FeatureTour"
 import { Toast } from "./components/Toast"
 import { filterAndSortTracks } from "./lib/filterTracks"
 import { fetchShortShare } from "./lib/shareApi"
+import { fetchPublishedSeeds } from "./lib/seedApi"
 import {
   clearShareHash,
   readShareFromLocation,
@@ -32,6 +34,7 @@ export default function App() {
   const filters = useVaultStore((s) => s.filters)
   const showAddForm = useVaultStore((s) => s.showAddForm)
   const loadGuestSet = useVaultStore((s) => s.loadGuestSet)
+  const applyPublishedSeeds = useVaultStore((s) => s.applyPublishedSeeds)
   const showToast = useToastStore((s) => s.show)
 
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -97,6 +100,18 @@ export default function App() {
     }
   }, [hydrated, loadGuestSet, showToast])
 
+  useEffect(() => {
+    if (!hydrated) return
+    let cancelled = false
+    void fetchPublishedSeeds().then((seeds) => {
+      if (cancelled) return
+      applyPublishedSeeds(seeds)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [hydrated, applyPublishedSeeds])
+
   const visible = useMemo(
     () => filterAndSortTracks(tracks, filters),
     [tracks, filters],
@@ -152,6 +167,8 @@ export default function App() {
         <div className="mb-4">
           <FilterBar />
         </div>
+
+        <YoutubeSearchPanel />
 
         <SimilarTracks />
 

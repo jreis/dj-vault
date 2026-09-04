@@ -11,8 +11,15 @@ pages_build_output_dir = "dist"
 #                                    YouTube Data API calls (keeps free quota / billing safe)
 # Local dev: .env.local with YOUTUBE_API_KEY=... (and optional YOUTUBE_DISCOVERY_ENABLED=false)
 #
-# Short share links (optional):
-#   1. Dashboard → Workers & Pages → KV → Create namespace (e.g. dj-vault-shares)
-#   2. Pages project → Settings → Functions → KV namespace bindings
-#        Variable name: SHARES  →  select the namespace (Production + Preview)
-#   Without SHARES, share buttons still work via #share=… hash URLs.
+# KV: short share links + published seed catalog (key seed:catalog).
+# Namespace is account-level (Workers KV). Bindings are declared here because
+# pages_build_output_dir makes wrangler.toml the source of truth.
+#
+# Publish seed catalog from the live app:
+#   SEED_ADMIN_SECRET — Encrypt in the Pages dashboard (Production + Preview).
+#   Local: add SEED_ADMIN_SECRET to .env.local to require the password in `npm run dev`.
+#   Without the secret, POST /api/seed is disabled on Pages (503).
+
+[[kv_namespaces]]
+binding = "SHARES"
+id = "7db899e2c5f4484ca8384994c20bc1d0"

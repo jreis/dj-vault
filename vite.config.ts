@@ -9,6 +9,7 @@ import {
   createDevShare,
   getDevShare,
 } from "./scripts/share-dev-store.ts"
+import { seedDevApi } from "./scripts/seed-dev-api.ts"
 
 /** Dev-only /api/youtube/similar + /api/youtube/search so local SPA can discover without wrangler. */
 function youtubeSimilarDevApi(env: {
@@ -141,6 +142,9 @@ export default defineConfig(({ mode }) => {
         YOUTUBE_DISCOVERY_ENABLED: env.YOUTUBE_DISCOVERY_ENABLED,
       }),
       shareDevApi(),
+      seedDevApi({
+        SEED_ADMIN_SECRET: env.SEED_ADMIN_SECRET,
+      }),
     ],
     build: {
       outDir: "dist/djvault",

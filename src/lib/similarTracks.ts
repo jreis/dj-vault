@@ -17,11 +17,21 @@ const GENRE_NEIGHBORS: Record<Genre, Genre[]> = {
   Punk: ["Grunge", "Alternative", "Hard Rock"],
   Alternative: ["Grunge", "Punk", "Nu Metal", "Hard Rock"],
   "Hard Rock": ["Metal", "Classic Rock", "Grunge", "Nu Metal"],
-  "Classic Rock": ["Hard Rock", "Metal"],
+  "Classic Rock": ["Hard Rock", "Metal", "Jazz"],
+  Jazz: ["Classic Rock", "Other"],
   Other: [],
 }
 
-const ERA_ORDER: Era[] = ["70s", "80s", "90s", "00s", "10s", "20s"]
+const ERA_ORDER: Era[] = [
+  "50s",
+  "60s",
+  "70s",
+  "80s",
+  "90s",
+  "00s",
+  "10s",
+  "20s",
+]
 
 const STOP = new Set([
   "a",

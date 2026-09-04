@@ -1,7 +1,9 @@
 import { useRef, useState } from "react"
 import type { Track } from "../types"
+import { SEED_TRACKS } from "../data/seedTracks"
 import { clearShareHash } from "../lib/shareLink"
 import { createShareLink } from "../lib/shareApi"
+import { fetchPublishedSeeds, publishSeeds } from "../lib/seedApi"
 import { useVaultStore } from "../store/useVaultStore"
 import { useToastStore } from "../store/useToastStore"
 
@@ -31,9 +33,17 @@ export function Toolbar() {
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const resetToSeed = useVaultStore((s) => s.resetToSeed)
   const importTracks = useVaultStore((s) => s.importTracks)
+  const applyPublishedSeeds = useVaultStore((s) => s.applyPublishedSeeds)
+  const publishedSeeds = useVaultStore((s) => s.publishedSeeds)
   const showToast = useToastStore((s) => s.show)
   const fileRef = useRef<HTMLInputElement>(null)
   const [pendingImport, setPendingImport] = useState<Track[] | null>(null)
+  const [seedDialogOpen, setSeedDialogOpen] = useState(false)
+  const [seedPassword, setSeedPassword] = useState("")
+  const [seedError, setSeedError] = useState<string | null>(null)
+  const [seedBusy, setSeedBusy] = useState(false)
+  const seedCount = (publishedSeeds ?? SEED_TRACKS).length
+  const needsSeedPassword = !import.meta.env.DEV
 
   function exportJson(source: "library" | "queue" | "set") {
     let list = tracks
@@ -143,6 +153,38 @@ export function Toolbar() {
     setPendingImport(null)
   }
 
+  function openSeedDialog() {
+    if (tracks.length === 0) {
+      showToast("Vault is empty — add a track first.", "error")
+      return
+    }
+    setSeedError(null)
+    setSeedDialogOpen(true)
+  }
+
+  async function confirmPublishSeed() {
+    if (tracks.length === 0) return
+    setSeedBusy(true)
+    setSeedError(null)
+    const result = await publishSeeds(tracks, seedPassword)
+    if (!result.ok) {
+      setSeedBusy(false)
+      setSeedError(result.error)
+      if (result.status === 401) setSeedPassword("")
+      return
+    }
+    const published = await fetchPublishedSeeds()
+    applyPublishedSeeds(published)
+    setSeedBusy(false)
+    setSeedDialogOpen(false)
+    showToast(
+      result.wroteFile
+        ? `Saved ${result.count} track${result.count === 1 ? "" : "s"} as seed (wrote seedTracks.ts). Reset seed to use them in this browser.`
+        : `Published ${result.count} track${result.count === 1 ? "" : "s"} as the live seed catalog.`,
+      "success",
+    )
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -202,10 +244,18 @@ export function Toolbar() {
         />
         <button
           type="button"
+          onClick={openSeedDialog}
+          className="rounded-lg border border-vault-border px-2.5 py-1.5 text-vault-muted hover:border-vault-amber hover:text-vault-amber"
+          title="Publish the current vault as the starter library (password required on the live site)"
+        >
+          Save as seed
+        </button>
+        <button
+          type="button"
           onClick={() => {
             if (
               confirm(
-                "Reset vault to the 20 seed tracks? Your votes, playlists, and custom tracks will be lost.",
+                `Reset vault to the ${seedCount} seed tracks? Your votes, playlists, and custom tracks will be lost.`,
               )
             ) {
               resetToSeed()
@@ -297,6 +347,82 @@ export function Toolbar() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {seedDialogOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="seed-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            aria-label="Cancel publish"
+            onClick={() => {
+              if (!seedBusy) setSeedDialogOpen(false)
+            }}
+          />
+          <form
+            className="relative z-10 w-full max-w-sm rounded-2xl border border-vault-border bg-vault-surface p-5 shadow-2xl"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void confirmPublishSeed()
+            }}
+          >
+            <h2
+              id="seed-title"
+              className="text-sm font-semibold text-vault-text"
+            >
+              Publish {tracks.length} track
+              {tracks.length === 1 ? "" : "s"} as seed?
+            </h2>
+            <p className="mt-2 text-xs leading-relaxed text-vault-muted">
+              New visitors and Reset seed will use this library. The curator
+              password is checked on the server, never baked into the page.
+              {import.meta.env.DEV
+                ? " Locally this also writes src/data/seedTracks.ts; leave the password blank unless you set SEED_ADMIN_SECRET."
+                : ""}
+            </p>
+            <label className="mt-3 block text-xs text-vault-muted">
+              Curator password
+              <input
+                type="password"
+                value={seedPassword}
+                onChange={(e) => setSeedPassword(e.target.value)}
+                autoComplete="current-password"
+                placeholder={
+                  import.meta.env.DEV ? "Optional in local dev" : undefined
+                }
+                className="mt-1 w-full rounded-lg border border-vault-border bg-vault-elevated px-3 py-2 text-sm text-vault-text focus:border-vault-amber focus:outline-none"
+                autoFocus={needsSeedPassword}
+              />
+            </label>
+            {seedError && (
+              <p className="mt-2 text-xs text-vault-red" role="alert">
+                {seedError}
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="submit"
+                disabled={seedBusy}
+                className="rounded-lg bg-vault-amber px-3 py-2 text-xs font-medium text-stone-950 hover:bg-amber-400 disabled:opacity-50"
+              >
+                {seedBusy ? "Publishing…" : "Publish"}
+              </button>
+              <button
+                type="button"
+                disabled={seedBusy}
+                onClick={() => setSeedDialogOpen(false)}
+                className="rounded-lg border border-vault-border px-3 py-2 text-xs text-vault-muted hover:text-vault-red"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

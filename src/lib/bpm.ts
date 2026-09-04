@@ -14,6 +14,7 @@ const GENRE_BPM_RANGES: Record<string, { min: number; max: number; avg: number }
   "Hard Rock": { min: 110, max: 160, avg: 130 },
   "Nu Metal": { min: 100, max: 150, avg: 125 },
   "Classic Rock": { min: 90, max: 140, avg: 115 },
+  "Jazz": { min: 60, max: 220, avg: 140 },
   "Other": { min: 80, max: 160, avg: 120 },
 }
 
@@ -59,6 +60,8 @@ export function estimateBPM(track: Track): number {
 
   // Add era-based adjustment (older music tends to be slower)
   let eraModifier = 0
+  if (track.era === "50s") eraModifier = -8
+  if (track.era === "60s") eraModifier = -6
   if (track.era === "70s") eraModifier = -5
   if (track.era === "80s") eraModifier = -2
   if (track.era === "00s") eraModifier = 2

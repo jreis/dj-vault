@@ -22,6 +22,10 @@
   "include": [
     "vite.config.ts",
     "scripts/youtube-similar-handler.ts",
-    "functions/_lib/youtubeSimilar.ts"
+    "scripts/share-dev-store.ts",
+    "scripts/seed-dev-api.ts",
+    "scripts/seed-source.ts",
+    "functions/_lib/youtubeSimilar.ts",
+    "functions/_lib/seedCatalog.ts"
   ]
 }

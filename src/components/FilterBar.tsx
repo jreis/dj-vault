@@ -47,25 +47,46 @@ export function FilterBar() {
               /
             </kbd>
           </span>
-          <div className="relative">
-            <input
-              id="vault-search"
-              type="search"
-              placeholder="Title, artist, year, notes…"
-              value={filters.query}
-              onChange={(e) => setFilters({ query: e.target.value })}
-              className="w-full rounded-lg border border-vault-border bg-vault-elevated py-2 pl-3 pr-9 text-sm text-vault-text placeholder:text-vault-muted/60 focus:border-vault-amber focus:outline-none"
-            />
-            {filters.query && (
-              <button
-                type="button"
-                onClick={() => setFilters({ query: "" })}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-vault-muted hover:text-vault-text"
-                aria-label="Clear search"
-              >
-                ✕
-              </button>
-            )}
+          <div className="flex gap-2">
+            <div className="relative min-w-0 flex-1">
+              <input
+                id="vault-search"
+                type="search"
+                placeholder="Title, artist… or Coltrane"
+                value={filters.query}
+                onChange={(e) => setFilters({ query: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return
+                  e.preventDefault()
+                  const q = e.currentTarget.value.trim()
+                  if (q) useVaultStore.getState().requestYoutubeSearch(q)
+                }}
+                className="w-full rounded-lg border border-vault-border bg-vault-elevated py-2 pl-3 pr-9 text-sm text-vault-text placeholder:text-vault-muted/60 focus:border-vault-amber focus:outline-none"
+              />
+              {filters.query && (
+                <button
+                  type="button"
+                  onClick={() => setFilters({ query: "" })}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-vault-muted hover:text-vault-text"
+                  aria-label="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={!filters.query.trim()}
+              onClick={() =>
+                useVaultStore
+                  .getState()
+                  .requestYoutubeSearch(filters.query)
+              }
+              className="shrink-0 rounded-lg border border-vault-border px-3 py-2 text-sm font-medium text-vault-text hover:border-vault-amber hover:text-vault-amber disabled:cursor-not-allowed disabled:opacity-40"
+              title="Search YouTube and add to the vault (Enter)"
+            >
+              YouTube
+            </button>
           </div>
         </label>
 

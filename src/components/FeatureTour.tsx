@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { SEED_TRACKS } from "../data/seedTracks"
 
 const STORAGE_KEY = "dj-vault-tour-v1"
 
@@ -10,7 +11,7 @@ interface TourStep {
 
 const TOUR_STEPS: TourStep[] = [
   {
-    title: "🎵 21 Curated Tracks",
+    title: `🎵 ${SEED_TRACKS.length} Curated Tracks`,
     description:
       "Start with classics from Metallica, Nirvana, Tool, Ghost, and more. Vote tracks up/down to build your favorites.",
     icon: "🎸",
@@ -18,7 +19,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     title: "🔍 Smart Discovery",
     description:
-      "Click 'Similar' on any track to find related songs. Our database knows Tesla → Def Leppard, Nirvana → Pearl Jam, and more!",
+      "Type a name in Search and press Enter to find it on YouTube, then add it in one click. Similar knows Tesla → Def Leppard, Nirvana → Pearl Jam, and more!",
     icon: "✨",
   },
   {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { SEED_TRACKS } from "../data/seedTracks"
 import { useVaultStore } from "../store/useVaultStore"
 
 const STORAGE_KEY = "dj-vault-welcome-v1"
@@ -9,7 +10,9 @@ interface WelcomeBannerProps {
 
 export function WelcomeBanner({ onOpenShortcuts }: WelcomeBannerProps) {
   const tracks = useVaultStore((s) => s.tracks)
+  const publishedSeeds = useVaultStore((s) => s.publishedSeeds)
   const playSet = useVaultStore((s) => s.playSet)
+  const seedCount = (publishedSeeds ?? SEED_TRACKS).length
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -49,8 +52,9 @@ export function WelcomeBanner({ onOpenShortcuts }: WelcomeBannerProps) {
             Welcome to the vault
           </p>
           <p className="mt-0.5 text-xs leading-relaxed text-vault-muted">
-            Explore 21 curated tracks, discover new artists, or start Radio Mode
-            for endless music. Click "Similar" on any track to find related songs.
+            Explore {seedCount} curated tracks, or search for anyone —
+            Coltrane, Charli, whoever — and add them from YouTube. Click
+            "Similar" on any track to find related songs.
             Save playlists with dedications, backup anytime. Hit{" "}
             <kbd className="rounded border border-vault-border px-1 font-mono text-[10px]">
               f

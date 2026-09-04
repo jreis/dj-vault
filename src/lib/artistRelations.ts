@@ -264,6 +264,50 @@ export const ARTIST_DATABASE: Record<string, ArtistInfo> = {
       "Little Richard",
     ],
   },
+
+  // Jazz
+  "John Coltrane": {
+    name: "John Coltrane",
+    subgenres: ["Jazz", "Hard Bop", "Modal Jazz"],
+    peakEra: ["50s", "60s"],
+    vibes: ["spiritual", "searching", "intense", "lyrical"],
+    similarArtists: [
+      "Miles Davis",
+      "Thelonious Monk",
+      "Sonny Rollins",
+      "Wayne Shorter",
+      "McCoy Tyner",
+      "Cannonball Adderley",
+      "Bill Evans",
+    ],
+  },
+  "Miles Davis": {
+    name: "Miles Davis",
+    subgenres: ["Jazz", "Cool Jazz", "Modal Jazz"],
+    peakEra: ["50s", "60s"],
+    vibes: ["cool", "innovative", "spacious", "electric"],
+    similarArtists: [
+      "John Coltrane",
+      "Thelonious Monk",
+      "Bill Evans",
+      "Wayne Shorter",
+      "Herbie Hancock",
+      "Cannonball Adderley",
+    ],
+  },
+  "Thelonious Monk": {
+    name: "Thelonious Monk",
+    subgenres: ["Jazz", "Bebop"],
+    peakEra: ["50s", "60s"],
+    vibes: ["angular", "playful", "percussive", "off-kilter"],
+    similarArtists: [
+      "John Coltrane",
+      "Miles Davis",
+      "Charlie Parker",
+      "Bud Powell",
+      "Duke Ellington",
+    ],
+  },
 }
 
 /**

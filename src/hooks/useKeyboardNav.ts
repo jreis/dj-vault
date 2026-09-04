@@ -154,6 +154,9 @@ export function useKeyboardNav(
           if (store.similarToId) {
             e.preventDefault()
             store.setSimilarTo(null)
+          } else if (store.youtubeSearchQuery) {
+            e.preventDefault()
+            store.clearYoutubeSearch()
           } else if (store.showAddForm) {
             e.preventDefault()
             store.setShowAddForm(false)

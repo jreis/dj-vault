@@ -5,6 +5,7 @@ interface ShortcutsModalProps {
 
 const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: "/", action: "Focus search" },
+  { keys: "Enter in search", action: "Search YouTube for that query" },
   { keys: "j / k  or  ↓ / ↑", action: "Move selection" },
   { keys: "Enter", action: "Play selected track" },
   { keys: "u / d", action: "Upvote / downvote" },

@@ -30,10 +30,13 @@ export function repairDeadYoutubeIds(tracks: Track[]): Track[] {
  * Append any seed tracks missing from a persisted library (by id and youtubeId).
  * Lets new seeds show up without forcing a full vault reset.
  */
-export function ensureSeedTracks(tracks: Track[]): Track[] {
+export function ensureSeedTracks(
+  tracks: Track[],
+  seeds: Track[] = SEED_TRACKS,
+): Track[] {
   const ids = new Set(tracks.map((t) => t.id))
   const yts = new Set(tracks.map((t) => t.youtubeId))
-  const missing = SEED_TRACKS.filter(
+  const missing = seeds.filter(
     (s) => !ids.has(s.id) && !yts.has(s.youtubeId),
   )
   return missing.length > 0 ? [...tracks, ...missing] : tracks
