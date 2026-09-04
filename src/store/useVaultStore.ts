@@ -26,6 +26,34 @@ function uid(prefix = "t"): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
 
+function trackFromInput(input: DiscoveredTrackInput, id?: string): Track {
+  const title = input.title.trim()
+  const artist = input.artist.trim()
+  const notes = input.notes?.trim() ?? ""
+  const addedAt = new Date().toISOString()
+  const draft: Track = {
+    id: id ?? uid("t"),
+    title,
+    artist,
+    youtubeId: input.youtubeId,
+    genre: input.genre,
+    era: input.era,
+    year: input.year,
+    score: 0,
+    notes,
+    addedAt,
+  }
+  return { ...draft, bpm: estimateBPM(draft) }
+}
+
+/** Drop a leftover preview once now-playing has moved on. */
+function previewIfCurrent(
+  preview: Track | null,
+  nowPlayingId: string | null,
+): Track | null {
+  return preview && preview.id === nowPlayingId ? preview : null
+}
+
 function prunePlaylistIds(
   playlists: Playlist[],
   trackIds: Set<string>,
@@ -46,6 +74,11 @@ interface VaultState {
    */
   guestTracks: Track[]
   guestSetName: string | null
+  /**
+   * Ephemeral now-playing track from YouTube search, not in the library.
+   * Replaced on each preview; dropped when playback moves on. Not persisted.
+   */
+  previewTrack: Track | null
   queue: string[]
   nowPlayingId: string | null
   selectedId: string | null
@@ -75,20 +108,19 @@ interface VaultState {
   awaitingPublishedSeeds: boolean
 
   // track ops
-  addTrack: (input: {
-    title: string
-    artist: string
-    youtubeId: string
-    genre: Genre
-    era: Track["era"]
-    year: number
-    notes?: string
-  }) => Track
+  addTrack: (input: DiscoveredTrackInput) => Track
   /**
    * Add discovered YouTube videos as ephemeral guest tracks (not persisted).
    * Returns resolved ids (existing library/guest id if the video is already known).
    */
   ingestDiscoveredTracks: (inputs: DiscoveredTrackInput[]) => string[]
+  /**
+   * Play a YouTube search result without adding it to the library.
+   * If the video is already in the library or guest set, plays that track.
+   */
+  playPreview: (input: DiscoveredTrackInput) => Track
+  /** Promote the current preview into the library, keeping playback on it. */
+  addPreviewToVault: () => Track | null
   removeTrack: (id: string) => void
   vote: (id: string, delta: 1 | -1) => void
   updateNotes: (id: string, notes: string) => void
@@ -119,7 +151,7 @@ interface VaultState {
   playPlaylist: (id: string) => void
   exportPlaylists: () => string
   importPlaylists: (json: string) => boolean
-  /** Resolve track from library or guest session. */
+  /** Resolve track from library, guest session, or active preview. */
   resolveTrack: (id: string) => Track | undefined
 
   // playback
@@ -162,15 +194,19 @@ export const defaultFilters: Filters = {
   sortDir: "desc",
 }
 
-/** Library + guest tracks for playback resolution. */
+/** Library + guest + preview tracks for playback resolution. */
 export function selectPlaybackTracks(s: {
   tracks: Track[]
   guestTracks: Track[]
+  previewTrack?: Track | null
 }): Track[] {
-  if (s.guestTracks.length === 0) return s.tracks
+  if (s.guestTracks.length === 0 && !s.previewTrack) return s.tracks
   const byId = new Map(s.tracks.map((t) => [t.id, t]))
   for (const g of s.guestTracks) {
     if (!byId.has(g.id)) byId.set(g.id, g)
+  }
+  if (s.previewTrack && !byId.has(s.previewTrack.id)) {
+    byId.set(s.previewTrack.id, s.previewTrack)
   }
   return [...byId.values()]
 }
@@ -193,6 +229,7 @@ export const useVaultStore = create<VaultState>()(
       playlists: [],
       guestTracks: [],
       guestSetName: null,
+      previewTrack: null,
       queue: [],
       nowPlayingId: null,
       selectedId: SEED_TRACKS[0]?.id ?? null,
@@ -210,40 +247,39 @@ export const useVaultStore = create<VaultState>()(
         const s = get()
         return (
           s.tracks.find((t) => t.id === id) ??
-          s.guestTracks.find((t) => t.id === id)
+          s.guestTracks.find((t) => t.id === id) ??
+          (s.previewTrack?.id === id ? s.previewTrack : undefined)
         )
       },
 
       addTrack: (input) => {
-        const track: Track = {
-          id: uid("t"),
-          title: input.title.trim(),
-          artist: input.artist.trim(),
-          youtubeId: input.youtubeId,
-          genre: input.genre,
-          era: input.era,
-          year: input.year,
-          score: 0,
-          notes: input.notes?.trim() ?? "",
-          addedAt: new Date().toISOString(),
-          bpm: estimateBPM({
-            id: "",
-            title: input.title.trim(),
-            artist: input.artist.trim(),
-            youtubeId: input.youtubeId,
-            genre: input.genre,
-            era: input.era,
-            year: input.year,
-            score: 0,
-            notes: input.notes?.trim() ?? "",
-            addedAt: new Date().toISOString(),
-          }),
-        }
-        set((s) => ({
-          tracks: [track, ...s.tracks],
-          selectedId: track.id,
-          showAddForm: false,
-        }))
+        const preview = get().previewTrack
+        const reusePreview =
+          preview !== null && preview.youtubeId === input.youtubeId
+        const track = trackFromInput(
+          input,
+          reusePreview ? preview.id : undefined,
+        )
+        set((s) => {
+          const wasPreview =
+            s.previewTrack !== null &&
+            s.previewTrack.youtubeId === track.youtubeId
+          const previewId = s.previewTrack?.id
+          return {
+            tracks: [track, ...s.tracks],
+            selectedId: track.id,
+            showAddForm: false,
+            previewTrack: wasPreview ? null : s.previewTrack,
+            nowPlayingId:
+              wasPreview && previewId && s.nowPlayingId === previewId
+                ? track.id
+                : s.nowPlayingId,
+            queue:
+              wasPreview && previewId
+                ? s.queue.map((id) => (id === previewId ? track.id : id))
+                : s.queue,
+          }
+        })
         return track
       },
 
@@ -290,6 +326,7 @@ export const useVaultStore = create<VaultState>()(
           playlists: [],
           guestTracks: [],
           guestSetName: null,
+          previewTrack: null,
           queue: [],
           nowPlayingId: null,
           selectedId: seeds[0]?.id ?? null,
@@ -306,6 +343,7 @@ export const useVaultStore = create<VaultState>()(
           playlists: prunePlaylistIds(s.playlists, new Set()),
           guestTracks: [],
           guestSetName: null,
+          previewTrack: null,
           queue: [],
           nowPlayingId: null,
           selectedId: null,
@@ -359,6 +397,7 @@ export const useVaultStore = create<VaultState>()(
             playlists: prunePlaylistIds(s.playlists, trackIds),
             guestTracks: [],
             guestSetName: null,
+            previewTrack: null,
           }))
           return
         }
@@ -383,6 +422,7 @@ export const useVaultStore = create<VaultState>()(
         set({
           guestTracks: tracksWithBPM,
           guestSetName: name?.trim() || null,
+          previewTrack: null,
           nowPlayingId: first,
           selectedId: first,
           queue: rest,
@@ -670,23 +710,7 @@ export const useVaultStore = create<VaultState>()(
             resolved.push(existing.id)
             continue
           }
-          const title = input.title.trim()
-          const artist = input.artist.trim()
-          const notes = input.notes?.trim() ?? ""
-          const addedAt = new Date().toISOString()
-          const draft: Track = {
-            id: uid("g"),
-            title,
-            artist,
-            youtubeId: input.youtubeId,
-            genre: input.genre,
-            era: input.era,
-            year: input.year,
-            score: 0,
-            notes,
-            addedAt,
-          }
-          const track: Track = { ...draft, bpm: estimateBPM(draft) }
+          const track = trackFromInput(input, uid("g"))
           newGuests.push(track)
           byYt.set(track.youtubeId, track)
           resolved.push(track.id)
@@ -698,16 +722,57 @@ export const useVaultStore = create<VaultState>()(
         return resolved
       },
 
+      playPreview: (input) => {
+        const s = get()
+        const known =
+          s.tracks.find((t) => t.youtubeId === input.youtubeId) ??
+          s.guestTracks.find((t) => t.youtubeId === input.youtubeId) ??
+          (s.previewTrack?.youtubeId === input.youtubeId
+            ? s.previewTrack
+            : undefined)
+        if (known) {
+          get().play(known.id)
+          return known
+        }
+        const track = trackFromInput(input)
+        set({
+          previewTrack: track,
+          nowPlayingId: track.id,
+          selectedId: track.id,
+        })
+        return track
+      },
+
+      addPreviewToVault: () => {
+        const preview = get().previewTrack
+        if (!preview) return null
+        return get().addTrack({
+          title: preview.title,
+          artist: preview.artist,
+          youtubeId: preview.youtubeId,
+          genre: preview.genre,
+          era: preview.era,
+          year: preview.year,
+          notes: preview.notes,
+        })
+      },
+
       play: (id) => {
         const prev = get().nowPlayingId
-        set({ nowPlayingId: id, selectedId: id })
+        const preview = get().previewTrack
+        set({
+          nowPlayingId: id,
+          selectedId: id,
+          previewTrack: previewIfCurrent(preview, id),
+        })
         // Same track is already mounted — resume in this click so autoplay
         // policies treat it as a user gesture (Start Radio, Play on current).
         if (prev === id) {
           resumeActiveYtPlayer()
         }
       },
-      stop: () => set({ nowPlayingId: null, setMode: false }),
+      stop: () =>
+        set({ nowPlayingId: null, setMode: false, previewTrack: null }),
 
       enqueue: (id) => {
         set((s) => (s.queue.includes(id) ? s : { queue: [...s.queue, id] }))
@@ -778,42 +843,66 @@ export const useVaultStore = create<VaultState>()(
           nowPlayingId: first,
           selectedId: first,
           queue: rest,
+          previewTrack: previewIfCurrent(get().previewTrack, first),
           // Multi-track sets open the live view — best demo moment.
           setMode: ids.length > 1,
         })
       },
 
       playNext: () => {
-        const { queue, nowPlayingId } = get()
+        const { queue, nowPlayingId, previewTrack } = get()
         const tracks = selectPlaybackTracks(get())
         if (queue.length > 0) {
           const [next, ...rest] = queue
-          set({ nowPlayingId: next, selectedId: next, queue: rest })
+          set({
+            nowPlayingId: next,
+            selectedId: next,
+            queue: rest,
+            previewTrack: previewIfCurrent(previewTrack, next),
+          })
           return
         }
         const sorted = [...tracks].sort((a, b) => b.score - a.score)
         if (!nowPlayingId) {
           if (sorted[0])
-            set({ nowPlayingId: sorted[0].id, selectedId: sorted[0].id })
+            set({
+              nowPlayingId: sorted[0].id,
+              selectedId: sorted[0].id,
+              previewTrack: previewIfCurrent(previewTrack, sorted[0].id),
+            })
           return
         }
         const idx = sorted.findIndex((t) => t.id === nowPlayingId)
         const next = sorted[idx + 1] ?? sorted[0]
-        if (next) set({ nowPlayingId: next.id, selectedId: next.id })
+        if (next)
+          set({
+            nowPlayingId: next.id,
+            selectedId: next.id,
+            previewTrack: previewIfCurrent(previewTrack, next.id),
+          })
       },
 
       playPrev: () => {
-        const { nowPlayingId } = get()
+        const { nowPlayingId, previewTrack } = get()
         const tracks = selectPlaybackTracks(get())
         const sorted = [...tracks].sort((a, b) => b.score - a.score)
         if (!nowPlayingId) {
           if (sorted[0])
-            set({ nowPlayingId: sorted[0].id, selectedId: sorted[0].id })
+            set({
+              nowPlayingId: sorted[0].id,
+              selectedId: sorted[0].id,
+              previewTrack: previewIfCurrent(previewTrack, sorted[0].id),
+            })
           return
         }
         const idx = sorted.findIndex((t) => t.id === nowPlayingId)
         const prev = sorted[idx - 1] ?? sorted[sorted.length - 1]
-        if (prev) set({ nowPlayingId: prev.id, selectedId: prev.id })
+        if (prev)
+          set({
+            nowPlayingId: prev.id,
+            selectedId: prev.id,
+            previewTrack: previewIfCurrent(previewTrack, prev.id),
+          })
       },
 
       select: (id) => set({ selectedId: id }),
@@ -884,7 +973,7 @@ export const useVaultStore = create<VaultState>()(
     {
       name: "dj-vault-v1",
       // Persist library + playlists + current track (and related UI prefs).
-      // Guest sets and transient UI are intentionally omitted.
+      // Guest sets, previews, and transient UI are intentionally omitted.
       partialize: (s) => ({
         tracks: s.tracks,
         playlists: s.playlists,
@@ -938,6 +1027,7 @@ export const useVaultStore = create<VaultState>()(
           playlists,
           guestTracks: [],
           guestSetName: null,
+          previewTrack: null,
           publishedSeeds: null,
           awaitingPublishedSeeds: !tracksPersisted,
           nowPlayingId,

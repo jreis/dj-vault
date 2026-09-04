@@ -83,7 +83,7 @@ export function FilterBar() {
                   .requestYoutubeSearch(filters.query)
               }
               className="shrink-0 rounded-lg border border-vault-border px-3 py-2 text-sm font-medium text-vault-text hover:border-vault-amber hover:text-vault-amber disabled:cursor-not-allowed disabled:opacity-40"
-              title="Search YouTube and add to the vault (Enter)"
+              title="Search YouTube — preview, then add (Enter)"
             >
               YouTube
             </button>

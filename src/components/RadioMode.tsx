@@ -24,6 +24,7 @@ const FILL_BATCH = 5
 export function RadioMode() {
   const tracks = useVaultStore((s) => s.tracks)
   const guestTracks = useVaultStore((s) => s.guestTracks)
+  const previewTrack = useVaultStore((s) => s.previewTrack)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const selectedId = useVaultStore((s) => s.selectedId)
   const queue = useVaultStore((s) => s.queue)
@@ -33,8 +34,8 @@ export function RadioMode() {
   const showToast = useToastStore((s) => s.show)
 
   const playbackTracks = useMemo(
-    () => selectPlaybackTracks({ tracks, guestTracks }),
-    [tracks, guestTracks],
+    () => selectPlaybackTracks({ tracks, guestTracks, previewTrack }),
+    [tracks, guestTracks, previewTrack],
   )
 
   const seed = useMemo(() => {

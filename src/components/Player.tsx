@@ -23,6 +23,8 @@ const AUTO_SIMILAR_LISTEN_MS = 60_000
 export function Player() {
   const tracks = useVaultStore((s) => s.tracks)
   const guestTracks = useVaultStore((s) => s.guestTracks)
+  const previewTrack = useVaultStore((s) => s.previewTrack)
+  const addPreviewToVault = useVaultStore((s) => s.addPreviewToVault)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const queue = useVaultStore((s) => s.queue)
   const playNext = useVaultStore((s) => s.playNext)
@@ -41,12 +43,15 @@ export function Player() {
   const showToast = useToastStore((s) => s.show)
 
   const playbackTracks = useMemo(
-    () => selectPlaybackTracks({ tracks, guestTracks }),
-    [tracks, guestTracks],
+    () => selectPlaybackTracks({ tracks, guestTracks, previewTrack }),
+    [tracks, guestTracks, previewTrack],
   )
   const resolve = (id: string) => playbackTracks.find((t) => t.id === id)
 
   const current = nowPlayingId ? resolve(nowPlayingId) : undefined
+  const isPreview = Boolean(
+    previewTrack && current && previewTrack.id === current.id,
+  )
   const queueTracks = queue
     .map((id) => resolve(id))
     .filter((t): t is Track => Boolean(t))
@@ -112,6 +117,7 @@ export function Player() {
     }
 
     const startListenTimer = () => {
+      if (useVaultStore.getState().previewTrack?.id === trackId) return
       if (listenTimer || autoSimilarShownRef.current.has(trackId)) return
       listenTimer = setInterval(() => {
         listenedMs += 1000
@@ -299,9 +305,16 @@ export function Player() {
         >
           {!setMode && (
             <div className="flex items-center justify-between border-b border-vault-border px-4 py-2.5">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-vault-muted">
-                Now playing
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-vault-muted">
+                  Now playing
+                </h2>
+                {isPreview && (
+                  <span className="rounded-full border border-vault-amber/40 bg-vault-amber/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-vault-amber">
+                    Preview
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 {setSize > 1 && (
                   <span className="text-[10px] font-medium uppercase tracking-wide text-vault-amber">
@@ -405,6 +418,11 @@ export function Player() {
                     }
                   >
                     {current.title}
+                    {isPreview && setMode && (
+                      <span className="ml-2 align-middle text-xs font-semibold uppercase tracking-wide text-amber-400">
+                        Preview
+                      </span>
+                    )}
                   </p>
                   <p
                     className={
@@ -523,27 +541,54 @@ export function Player() {
                   >
                     YouTube ↗
                   </a>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSimilarTo(
-                        similarToId === current.id ? null : current.id,
-                      )
-                    }
-                    className={
-                      similarToId === current.id
-                        ? setMode
-                          ? "min-h-9 rounded-lg border border-sky-500/40 bg-sky-500/15 px-3 py-1.5 text-xs text-sky-400"
-                          : "min-h-9 rounded-lg border border-vault-blue bg-vault-blue/15 px-3 py-1.5 text-xs text-vault-blue"
-                        : setMode
-                          ? "min-h-9 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-stone-400 hover:border-sky-500/40 hover:text-sky-400"
-                          : "min-h-9 rounded-lg border border-vault-border px-3 py-1.5 text-xs text-vault-muted hover:border-vault-blue hover:text-vault-blue"
-                    }
-                    title="Find similar tracks in vault (s)"
-                  >
-                    Similar
-                  </button>
-                  <AddToPlaylistMenu trackId={current.id} trackTitle={current.title} />
+                  {isPreview ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const added = addPreviewToVault()
+                        if (added) {
+                          showToast(
+                            `Added “${added.title}” to the vault`,
+                            "success",
+                          )
+                        }
+                      }}
+                      className={
+                        setMode
+                          ? "min-h-9 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/25"
+                          : "min-h-9 rounded-lg bg-vault-amber px-3 py-1.5 text-xs font-medium text-stone-950 hover:bg-amber-400"
+                      }
+                    >
+                      Add to vault
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSimilarTo(
+                            similarToId === current.id ? null : current.id,
+                          )
+                        }
+                        className={
+                          similarToId === current.id
+                            ? setMode
+                              ? "min-h-9 rounded-lg border border-sky-500/40 bg-sky-500/15 px-3 py-1.5 text-xs text-sky-400"
+                              : "min-h-9 rounded-lg border border-vault-blue bg-vault-blue/15 px-3 py-1.5 text-xs text-vault-blue"
+                            : setMode
+                              ? "min-h-9 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-stone-400 hover:border-sky-500/40 hover:text-sky-400"
+                              : "min-h-9 rounded-lg border border-vault-border px-3 py-1.5 text-xs text-vault-muted hover:border-vault-blue hover:text-vault-blue"
+                        }
+                        title="Find similar tracks in vault (s)"
+                      >
+                        Similar
+                      </button>
+                      <AddToPlaylistMenu
+                        trackId={current.id}
+                        trackTitle={current.title}
+                      />
+                    </>
+                  )}
                   <button
                     type="button"
                     onClick={toggleSetMode}

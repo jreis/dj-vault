@@ -19,7 +19,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     title: "🔍 Smart Discovery",
     description:
-      "Type a name in Search and press Enter to find it on YouTube, then add it in one click. Similar knows Tesla → Def Leppard, Nirvana → Pearl Jam, and more!",
+      "Type a name in Search and press Enter to find it on YouTube. Preview before you add — nothing is saved until you want it. Similar knows Tesla → Def Leppard, Nirvana → Pearl Jam, and more!",
     icon: "✨",
   },
   {

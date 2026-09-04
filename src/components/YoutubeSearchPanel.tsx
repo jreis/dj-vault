@@ -24,9 +24,10 @@ export function YoutubeSearchPanel() {
   const requestYoutubeSearch = useVaultStore((s) => s.requestYoutubeSearch)
   const clearYoutubeSearch = useVaultStore((s) => s.clearYoutubeSearch)
   const addTrack = useVaultStore((s) => s.addTrack)
-  const play = useVaultStore((s) => s.play)
+  const playPreview = useVaultStore((s) => s.playPreview)
   const enqueueNext = useVaultStore((s) => s.enqueueNext)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
+  const previewTrack = useVaultStore((s) => s.previewTrack)
   const showToast = useToastStore((s) => s.show)
 
   const [status, setStatus] = useState<SearchStatus>("idle")
@@ -98,17 +99,40 @@ export function YoutubeSearchPanel() {
     return () => ac.abort()
   }, [activeQuery, youtubeSearchSeq])
 
-  function addVideo(video: DiscoverVideo, mode: "add" | "play" | "queue") {
+  function scrollToPlayer() {
+    queueMicrotask(() => {
+      document
+        .querySelector('[aria-label="Player and queue"]')
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    })
+  }
+
+  function previewVideo(video: DiscoverVideo) {
+    const meta = guessTrackMeta({
+      query: activeQuery || typedQuery,
+      videoTitle: video.title,
+      channelTitle: video.channelTitle,
+    })
+    const existing = tracks.find((t) => t.youtubeId === video.youtubeId)
+    playPreview({
+      ...meta,
+      youtubeId: video.youtubeId,
+      notes: `Preview from YouTube search “${activeQuery || typedQuery}”`,
+    })
+    if (existing) {
+      showToast(`Playing “${existing.title}”`, "info")
+    } else {
+      showToast(`Previewing “${meta.title}” — not in the vault yet`, "info")
+    }
+    scrollToPlayer()
+  }
+
+  function addVideo(video: DiscoverVideo, mode: "add" | "queue") {
     if (vaultYtIds.has(video.youtubeId)) {
       const existing = tracks.find((t) => t.youtubeId === video.youtubeId)
       if (existing) {
-        if (mode === "play") {
-          play(existing.id)
-          showToast(`Playing “${existing.title}”`, "info")
-        } else {
-          enqueueNext(existing.id)
-          showToast(`Already in vault — queued “${existing.title}”`, "info")
-        }
+        enqueueNext(existing.id)
+        showToast(`Already in vault — queued “${existing.title}”`, "info")
       } else {
         showToast("Already in your vault", "info")
       }
@@ -128,15 +152,16 @@ export function YoutubeSearchPanel() {
     })
     setAddingId(null)
 
-    if (mode === "play") {
-      play(track.id)
-      showToast(`Added & playing “${meta.title}”`, "success")
-    } else if (mode === "queue") {
-      enqueueNext(track.id)
+    if (mode === "queue") {
+      const playingThis =
+        useVaultStore.getState().nowPlayingId === track.id
+      if (!playingThis) enqueueNext(track.id)
       showToast(
-        nowPlayingId
-          ? `Added — up next: “${meta.title}”`
-          : `Added & queued “${meta.title}”`,
+        playingThis
+          ? `Added “${meta.title}” to the vault`
+          : nowPlayingId
+            ? `Added — up next: “${meta.title}”`
+            : `Added & queued “${meta.title}”`,
         "success",
       )
     } else {
@@ -186,7 +211,8 @@ export function YoutubeSearchPanel() {
             )}
           </p>
           <p className="mt-0.5 text-[11px] text-vault-muted/80">
-            One click adds it. Genre and year are guessed — edit later if needed.
+            Preview to listen first. Add keeps it in the vault. Genre and year
+            are guessed — edit later if needed.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-1.5">
@@ -271,22 +297,37 @@ export function YoutubeSearchPanel() {
               channelTitle: video.channelTitle,
             })
             const busy = addingId === video.youtubeId
+            const isPreviewing = previewTrack?.youtubeId === video.youtubeId
             return (
               <li
                 key={video.youtubeId}
                 className="flex flex-wrap items-center gap-3 px-3 py-2.5 sm:flex-nowrap sm:px-4"
               >
-                <div className="relative h-10 w-16 shrink-0 overflow-hidden rounded bg-vault-elevated">
+                <button
+                  type="button"
+                  onClick={() => previewVideo(video)}
+                  className="relative h-10 w-16 shrink-0 overflow-hidden rounded bg-vault-elevated"
+                  title="Preview"
+                  aria-label={`Preview ${meta.title}`}
+                >
                   <img
                     src={video.thumbnailUrl || youtubeThumbUrl(video.youtubeId)}
                     alt=""
                     className="h-full w-full object-cover"
                     loading="lazy"
                   />
-                </div>
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-[10px] font-semibold text-white">
+                    ▶
+                  </span>
+                </button>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-vault-text">
                     {meta.title}
+                    {isPreviewing && (
+                      <span className="ml-1.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-vault-amber">
+                        Previewing
+                      </span>
+                    )}
                   </p>
                   <p className="truncate text-xs text-vault-muted">
                     {meta.artist}
@@ -300,10 +341,15 @@ export function YoutubeSearchPanel() {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => addVideo(video, "play")}
-                    className="min-h-8 flex-1 rounded-md border border-vault-border px-2 py-1 text-xs text-vault-amber hover:border-vault-amber disabled:opacity-40 sm:flex-none"
+                    onClick={() => previewVideo(video)}
+                    aria-pressed={isPreviewing}
+                    className={`min-h-8 flex-1 rounded-md border px-2 py-1 text-xs disabled:opacity-40 sm:flex-none ${
+                      isPreviewing
+                        ? "border-vault-amber bg-vault-amber/15 text-vault-amber"
+                        : "border-vault-border text-vault-amber hover:border-vault-amber"
+                    }`}
                   >
-                    Play
+                    Preview
                   </button>
                   <button
                     type="button"

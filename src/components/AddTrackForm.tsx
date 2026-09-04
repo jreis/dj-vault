@@ -16,6 +16,8 @@ type SearchStatus = "idle" | "loading" | "ready" | "error"
 export function AddTrackForm() {
   const tracks = useVaultStore((s) => s.tracks)
   const addTrack = useVaultStore((s) => s.addTrack)
+  const playPreview = useVaultStore((s) => s.playPreview)
+  const previewTrack = useVaultStore((s) => s.previewTrack)
   const setShowAddForm = useVaultStore((s) => s.setShowAddForm)
   const showToast = useToastStore((s) => s.show)
 
@@ -96,6 +98,27 @@ export function AddTrackForm() {
     setArtist(guessed.artist)
     setGenre(guessed.genre)
     setYearAndMaybeEra(guessed.year)
+  }
+
+  function previewSelected() {
+    const youtubeId = parseYouTubeId(youtube)
+    if (!youtubeId) return
+    const label = title.trim() || "track"
+    playPreview({
+      youtubeId,
+      title: title.trim() || "Untitled",
+      artist: artist.trim() || "Unknown",
+      genre,
+      era,
+      year,
+      notes: notes.trim(),
+    })
+    showToast(`Previewing “${label}” — not in the vault yet`, "info")
+    queueMicrotask(() => {
+      document
+        .querySelector('[aria-label="Player and queue"]')
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    })
   }
 
   const showManualFallback =
@@ -290,19 +313,43 @@ export function AddTrackForm() {
 
       {parsedId && (
         <div className="mb-4 flex items-center gap-3 rounded-lg border border-vault-border/80 bg-vault-elevated/50 p-2">
-          <div className="relative h-14 w-[6.25rem] shrink-0 overflow-hidden rounded bg-black">
+          <button
+            type="button"
+            onClick={previewSelected}
+            className="relative h-14 w-[6.25rem] shrink-0 overflow-hidden rounded bg-black"
+            title="Preview in player"
+            aria-label="Preview this video"
+          >
             <img
               src={youtubeThumbUrl(parsedId)}
               alt=""
               className="h-full w-full object-cover"
             />
-          </div>
-          <div className="min-w-0 text-xs text-vault-muted">
-            <p className="font-medium text-vault-text">Preview ready</p>
+            <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-sm font-semibold text-white">
+              ▶
+            </span>
+          </button>
+          <div className="min-w-0 flex-1 text-xs text-vault-muted">
+            <p className="font-medium text-vault-text">
+              {previewTrack?.youtubeId === parsedId
+                ? "Previewing in the player"
+                : "Listen before you add"}
+            </p>
             <p className="mt-0.5">
-              Fill title & artist, then add. Playback uses this embed.
+              Preview plays in Now playing — nothing is saved until you add.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={previewSelected}
+            className={`shrink-0 rounded-md border px-2.5 py-1.5 text-xs ${
+              previewTrack?.youtubeId === parsedId
+                ? "border-vault-amber bg-vault-amber/15 text-vault-amber"
+                : "border-vault-border text-vault-amber hover:border-vault-amber"
+            }`}
+          >
+            Preview
+          </button>
         </div>
       )}
 
