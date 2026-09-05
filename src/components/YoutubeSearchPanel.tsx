@@ -10,6 +10,7 @@ import {
   looksLikeArtistQuery,
   searchYouTubeVideos,
   titleCaseQuery,
+  youtubeSearchFromEnter,
   type DiscoverVideo,
 } from "../lib/youtubeDiscover"
 import { useVaultStore } from "../store/useVaultStore"
@@ -290,7 +291,7 @@ export function YoutubeSearchPanel() {
           </p>
           <p className="mt-0.5 text-[11px] text-vault-muted/80">
             {artistQuery
-              ? "Play best of adds their most-played videos to a playlist in your vault."
+              ? "Preview to listen first. Play best of adds their most-played videos to a playlist — only if you want them in the vault."
               : "Preview to listen first. Add keeps it in the vault. Genre and year are guessed — edit later if needed."}
           </p>
         </div>
@@ -298,16 +299,14 @@ export function YoutubeSearchPanel() {
           {showPrompt && (
             <button
               type="button"
-              onClick={() =>
-                requestYoutubeSearch(typedQuery, {
-                  playBestOf: looksLikeArtistQuery(typedQuery),
-                })
-              }
+              onClick={() => {
+                const { query, playBestOf } =
+                  youtubeSearchFromEnter(typedQuery)
+                requestYoutubeSearch(query, { playBestOf })
+              }}
               className="rounded-lg bg-vault-amber px-2.5 py-1 text-xs font-medium text-stone-950 hover:bg-amber-400"
             >
-              {looksLikeArtistQuery(typedQuery)
-                ? `Play best of ${titleCaseQuery(typedQuery)}`
-                : "Search YouTube"}
+              Search YouTube
             </button>
           )}
           {activeQuery &&

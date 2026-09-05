@@ -78,6 +78,17 @@ export function looksLikeArtistQuery(q: string): boolean {
   return words.length > 0 && words.length <= 2 && !/\d/.test(q)
 }
 
+/**
+ * Enter in the vault search box. Lookup-only: never dumps YouTube results
+ * into the library. "Play best of" is a separate, explicit button.
+ */
+export function youtubeSearchFromEnter(query: string): {
+  query: string
+  playBestOf: false
+} {
+  return { query: query.trim(), playBestOf: false }
+}
+
 export function titleCaseQuery(q: string): string {
   return q
     .trim()

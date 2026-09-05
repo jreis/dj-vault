@@ -8,6 +8,7 @@ import {
 import {
   looksLikeArtistQuery,
   titleCaseQuery,
+  youtubeSearchFromEnter,
 } from "../lib/youtubeDiscover"
 import { useVaultStore } from "../store/useVaultStore"
 
@@ -54,8 +55,8 @@ export function FilterBar() {
               /
             </kbd>
           </span>
-          <div className="flex gap-2">
-            <div className="relative min-w-0 flex-1">
+          <div className="flex flex-wrap gap-2">
+            <div className="relative min-w-0 flex-1 basis-40">
               <input
                 id="vault-search"
                 type="search"
@@ -65,11 +66,13 @@ export function FilterBar() {
                 onKeyDown={(e) => {
                   if (e.key !== "Enter") return
                   e.preventDefault()
-                  const q = e.currentTarget.value.trim()
-                  if (!q) return
-                  useVaultStore.getState().requestYoutubeSearch(q, {
-                    playBestOf: looksLikeArtistQuery(q),
-                  })
+                  const { query, playBestOf } = youtubeSearchFromEnter(
+                    e.currentTarget.value,
+                  )
+                  if (!query) return
+                  useVaultStore
+                    .getState()
+                    .requestYoutubeSearch(query, { playBestOf })
                 }}
                 className="w-full rounded-lg border border-vault-border bg-vault-elevated py-2 pl-3 pr-9 text-sm text-vault-text placeholder:text-vault-muted/60 focus:border-vault-amber focus:outline-none"
               />
@@ -84,7 +87,23 @@ export function FilterBar() {
                 </button>
               )}
             </div>
-            {artistQuery ? (
+            <button
+              type="button"
+              disabled={!typedQuery}
+              onClick={() => {
+                const { query, playBestOf } =
+                  youtubeSearchFromEnter(typedQuery)
+                if (!query) return
+                useVaultStore
+                  .getState()
+                  .requestYoutubeSearch(query, { playBestOf })
+              }}
+              className="shrink-0 rounded-lg border border-vault-border px-3 py-2 text-sm font-medium text-vault-text hover:border-vault-amber hover:text-vault-amber disabled:cursor-not-allowed disabled:opacity-40"
+              title="Search YouTube — preview, then add (Enter)"
+            >
+              YouTube
+            </button>
+            {artistQuery && (
               <button
                 type="button"
                 onClick={() =>
@@ -96,18 +115,6 @@ export function FilterBar() {
                 title={`Add ${artistLabel}'s most popular songs as a playlist and play them`}
               >
                 Play best of {artistLabel}
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={!typedQuery}
-                onClick={() =>
-                  useVaultStore.getState().requestYoutubeSearch(typedQuery)
-                }
-                className="shrink-0 rounded-lg border border-vault-border px-3 py-2 text-sm font-medium text-vault-text hover:border-vault-amber hover:text-vault-amber disabled:cursor-not-allowed disabled:opacity-40"
-                title="Search YouTube — preview, then add (Enter)"
-              >
-                YouTube
               </button>
             )}
           </div>
