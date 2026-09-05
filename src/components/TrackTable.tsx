@@ -1,7 +1,6 @@
 import type { Track } from "../types"
 import { useVaultStore } from "../store/useVaultStore"
 import { youtubeThumbUrl } from "../lib/youtube"
-import { TrackWaveform } from "./TrackWaveform"
 import { AddToPlaylistMenu } from "./AddToPlaylistMenu"
 
 interface TrackTableProps {
@@ -10,6 +9,34 @@ interface TrackTableProps {
 
 function songTooltip(track: Track): string {
   return `${track.title} — ${track.artist}`
+}
+
+function TrackDetails({ track }: { track: Track }) {
+  return (
+    <>
+      <p className="wrap-break-word text-vault-muted">
+        {track.artist}
+        <span className="text-vault-border"> · </span>
+        {track.year}
+      </p>
+      <p className="mt-0.5 text-xs wrap-break-word text-vault-muted/70">
+        {track.genre}
+        <span className="text-vault-border"> · </span>
+        {track.era}
+        {track.bpm != null && (
+          <>
+            <span className="text-vault-border"> · </span>
+            <span className="font-mono">{track.bpm} BPM</span>
+          </>
+        )}
+      </p>
+      {track.notes ? (
+        <p className="mt-0.5 text-xs italic wrap-break-word text-vault-muted/60">
+          {track.notes}
+        </p>
+      ) : null}
+    </>
+  )
 }
 
 export function TrackTable({ tracks }: TrackTableProps) {
@@ -159,39 +186,24 @@ export function TrackTable({ tracks }: TrackTableProps) {
                 </div>
 
                 <div className="min-w-0 flex-1" title={songTooltip(track)}>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="truncate font-medium text-vault-text">
+                  <div className="flex items-start gap-1.5">
+                    <span className="min-w-0 flex-1 font-medium wrap-break-word text-vault-text">
                       {track.title}
                     </span>
                     {playing && (
-                      <span className="shrink-0 rounded bg-vault-amber/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-vault-amber">
+                      <span className="mt-0.5 shrink-0 rounded bg-vault-amber/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-vault-amber">
                         Now
                       </span>
                     )}
                     {queued && !playing && (
-                      <span className="shrink-0 rounded bg-vault-blue/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-vault-blue">
+                      <span className="mt-0.5 shrink-0 rounded bg-vault-blue/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-vault-blue">
                         Q
                       </span>
                     )}
                   </div>
-                  <p className="truncate text-sm text-vault-muted">
-                    {track.artist}
-                    <span className="text-vault-border"> · </span>
-                    {track.year}
-                    <span className="text-vault-border"> · </span>
-                    {track.genre}
-                    {track.bpm && (
-                      <>
-                        <span className="text-vault-border"> · </span>
-                        <span className="font-mono text-vault-blue">{track.bpm} BPM</span>
-                      </>
-                    )}
-                  </p>
-                  {track.notes && (
-                    <p className="mt-0.5 truncate text-xs text-vault-muted/70">
-                      {track.notes}
-                    </p>
-                  )}
+                  <div className="text-sm">
+                    <TrackDetails track={track} />
+                  </div>
 
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <button
@@ -268,18 +280,6 @@ export function TrackTable({ tracks }: TrackTableProps) {
                   Vote
                 </th>
                 <th className="min-w-0 px-3 py-2.5 font-medium">Track</th>
-                <th className="hidden w-28 px-2 py-2.5 font-medium md:table-cell">
-                  Genre
-                </th>
-                <th className="hidden w-12 px-2 py-2.5 font-medium lg:table-cell">
-                  Era
-                </th>
-                <th className="hidden w-24 px-2 py-2.5 font-medium xl:table-cell">
-                  BPM
-                </th>
-                <th className="hidden w-36 px-2 py-2.5 font-medium xl:table-cell">
-                  Notes
-                </th>
                 <th className="w-60 px-2 py-2.5 text-right font-medium">
                   Actions
                 </th>
@@ -363,63 +363,24 @@ export function TrackTable({ tracks }: TrackTableProps) {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="truncate font-medium text-vault-text">
+                          <div className="flex items-start gap-2">
+                            <span className="min-w-0 flex-1 font-medium wrap-break-word text-vault-text">
                               {track.title}
                             </span>
                             {playing && (
-                              <span className="shrink-0 rounded bg-vault-amber/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-vault-amber">
+                              <span className="mt-0.5 shrink-0 rounded bg-vault-amber/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-vault-amber">
                                 Now
                               </span>
                             )}
                             {queued && !playing && (
-                              <span className="shrink-0 rounded bg-vault-blue/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-vault-blue">
+                              <span className="mt-0.5 shrink-0 rounded bg-vault-blue/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-vault-blue">
                                 Q
                               </span>
                             )}
                           </div>
-                          <div className="truncate text-vault-muted">
-                            {track.artist}
-                            <span className="text-vault-border"> · </span>
-                            {track.year}
-                          </div>
+                          <TrackDetails track={track} />
                         </div>
                       </div>
-                    </td>
-
-                    <td className="hidden px-2 py-2.5 align-middle md:table-cell">
-                      <span className="inline-block max-w-full truncate rounded-full border border-vault-border bg-vault-elevated px-2 py-0.5 text-xs text-vault-muted">
-                        {track.genre}
-                      </span>
-                    </td>
-
-                    <td className="hidden px-2 py-2.5 align-middle font-mono text-vault-muted lg:table-cell">
-                      {track.era}
-                    </td>
-
-                    <td className="hidden px-2 py-2.5 align-middle xl:table-cell">
-                      {track.bpm ? (
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm text-vault-blue">
-                            {track.bpm}
-                          </span>
-                          <div className="h-6 w-16">
-                            <TrackWaveform
-                              trackId={track.id}
-                              width={64}
-                              height={24}
-                              color="blue"
-                              mini
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-vault-muted/50">—</span>
-                      )}
-                    </td>
-
-                    <td className="hidden truncate px-2 py-2.5 align-middle text-vault-muted xl:table-cell">
-                      {track.notes || "—"}
                     </td>
 
                     <td className="px-2 py-2.5 text-right align-middle">
