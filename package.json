@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && rm -rf dist && vite build && node scripts/cf-pages.mjs",
     "lint": "oxlint",
-    "test": "node --experimental-strip-types --test scripts/seed-catalog.test.ts",
+    "test": "node --experimental-strip-types --test scripts/*.test.ts",
     "preview": "vite preview",
     "preview:site": "npm run build && npx --yes serve dist -p 4173"
   },

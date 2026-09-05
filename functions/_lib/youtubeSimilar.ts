@@ -191,6 +191,25 @@ function looksLikeArtistQuery(q: string): boolean {
   return words.length > 0 && words.length <= 2 && !/\d/.test(q)
 }
 
+const ARTIST_STOP = new Set(["the", "a", "an", "of", "and", "dj"])
+
+/** Keep videos that actually name the artist in the title or channel. */
+export function videoMatchesArtistQuery(
+  item: { title: string; channelTitle: string },
+  q: string,
+): boolean {
+  const hay = `${item.title} ${item.channelTitle}`.toLowerCase()
+  const tokens = q
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length > 1 && !ARTIST_STOP.has(t))
+  const need =
+    tokens.length > 0
+      ? tokens
+      : q.toLowerCase().split(/\s+/).filter(Boolean)
+  return need.length > 0 && need.every((t) => hay.includes(t))
+}
+
 function parseExcludeIds(raw: string): Set<string> {
   return new Set(
     raw
@@ -210,6 +229,8 @@ async function runYouTubeSearch(
   exclude: Set<string>,
   env: DiscoveryEnv,
   order: "relevance" | "viewCount" = "relevance",
+  keep = 12,
+  artistFilter?: string,
 ): Promise<SimilarSearchResult> {
   if (parseFlagOff(env.YOUTUBE_DISCOVERY_ENABLED)) {
     return disabledResult("disabled")
@@ -234,7 +255,8 @@ async function runYouTubeSearch(
   const ytUrl = new URL("https://www.googleapis.com/youtube/v3/search")
   ytUrl.searchParams.set("part", "snippet")
   ytUrl.searchParams.set("type", "video")
-  ytUrl.searchParams.set("maxResults", "15")
+  const fetchCount = Math.min(50, artistFilter ? Math.max(keep * 2, 25) : keep)
+  ytUrl.searchParams.set("maxResults", String(fetchCount))
   ytUrl.searchParams.set("q", q)
   ytUrl.searchParams.set("videoEmbeddable", "true")
   ytUrl.searchParams.set("videoCategoryId", "10") // Music
@@ -313,7 +335,10 @@ async function runYouTubeSearch(
       }
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
-    .slice(0, 12)
+    .filter((item) =>
+      artistFilter ? videoMatchesArtistQuery(item, artistFilter) : true,
+    )
+    .slice(0, keep)
 
   return {
     status: 200,
@@ -374,7 +399,14 @@ export async function handleTrackSearch(
   const searchQuery = artistLike ? `${q} top songs` : q
   const order = artistLike ? "viewCount" : "relevance"
 
-  const result = await runYouTubeSearch(searchQuery, exclude, env, order)
+  const result = await runYouTubeSearch(
+    searchQuery,
+    exclude,
+    env,
+    order,
+    artistLike ? 15 : 12,
+    artistLike ? q : undefined,
+  )
   if (result.status === 200) {
     result.body.query = q
   }

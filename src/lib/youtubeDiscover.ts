@@ -69,6 +69,24 @@ export function isDiscoverClientBlocked(): boolean {
   return Date.now() < clientBlockUntil()
 }
 
+/**
+ * One or two words, no digits — "Elvis", "Charli XCX" — not a song title
+ * like "Evanescence About Us".
+ */
+export function looksLikeArtistQuery(q: string): boolean {
+  const words = q.trim().split(/\s+/).filter(Boolean)
+  return words.length > 0 && words.length <= 2 && !/\d/.test(q)
+}
+
+export function titleCaseQuery(q: string): string {
+  return q
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ")
+}
+
 /** Strip common YouTube title noise for vault metadata. */
 export function cleanVideoTitle(raw: string): string {
   return raw

@@ -52,8 +52,8 @@ export function WelcomeBanner({ onOpenShortcuts }: WelcomeBannerProps) {
             Welcome to the vault
           </p>
           <p className="mt-0.5 text-xs leading-relaxed text-vault-muted">
-            Explore {seedCount} curated tracks, or search for anyone —
-            Coltrane, Charli, whoever — and add them from YouTube. Click
+            Explore {seedCount} curated tracks, or type an artist — Elvis,
+            Coltrane, whoever — and play their best-known songs. Click
             "Similar" on any track to find related songs.
             Save playlists with dedications, backup anytime. Hit{" "}
             <kbd className="rounded border border-vault-border px-1 font-mono text-[10px]">

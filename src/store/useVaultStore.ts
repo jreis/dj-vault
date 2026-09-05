@@ -99,6 +99,11 @@ interface VaultState {
   /** Bumped on each explicit YouTube search so the same query can retry. */
   youtubeSearchSeq: number
   /**
+   * When true, the YouTube search panel should start playing the best-of
+   * set as soon as results arrive (artist-name searches).
+   */
+  youtubePlayBestOf: boolean
+  /**
    * Live published seed catalog from GET /api/seed.
    * Transient — not persisted. Null means use bundled SEED_TRACKS.
    */
@@ -186,8 +191,17 @@ interface VaultState {
   setShowAddForm: (open: boolean) => void
   setSimilarTo: (id: string | null) => void
   /** Search YouTube for `query`, or the current vault search if omitted. */
-  requestYoutubeSearch: (query?: string) => void
+  requestYoutubeSearch: (query?: string, opts?: { playBestOf?: boolean }) => void
   clearYoutubeSearch: () => void
+  /**
+   * Add YouTube discoveries to the library, save them as a named playlist
+   * (replacing one with the same name), and start playing that set.
+   */
+  playArtistBestOf: (
+    name: string,
+    extraVaultIds: string[],
+    discoveries: DiscoveredTrackInput[],
+  ) => Playlist | null
   setSetMode: (open: boolean) => void
   toggleSetMode: () => void
   toggleDarkMode: () => void
@@ -247,6 +261,7 @@ export const useVaultStore = create<VaultState>()(
       similarToId: null,
       youtubeSearchQuery: null,
       youtubeSearchSeq: 0,
+      youtubePlayBestOf: false,
       publishedSeeds: null,
       publishedPlaylists: null,
       awaitingPublishedSeeds: false,
@@ -721,6 +736,69 @@ export const useVaultStore = create<VaultState>()(
         get().playSet(valid)
       },
 
+      playArtistBestOf: (name, extraVaultIds, discoveries) => {
+        const trimmed = name.trim().slice(0, 80)
+        if (!trimmed) return null
+        const s = get()
+        const byYt = new Map(s.tracks.map((t) => [t.youtubeId, t]))
+        const ids: string[] = []
+        const toAdd: Track[] = []
+
+        for (const input of discoveries) {
+          const existing = byYt.get(input.youtubeId)
+          if (existing) {
+            if (!ids.includes(existing.id)) ids.push(existing.id)
+            continue
+          }
+          const track = trackFromInput(input)
+          toAdd.push(track)
+          byYt.set(track.youtubeId, track)
+          ids.push(track.id)
+        }
+
+        for (const id of extraVaultIds) {
+          if (s.tracks.some((t) => t.id === id) && !ids.includes(id)) {
+            ids.push(id)
+          }
+        }
+
+        if (ids.length === 0) {
+          set({ youtubePlayBestOf: false })
+          return null
+        }
+
+        const now = new Date().toISOString()
+        const existingPl = s.playlists.find(
+          (p) => !p.curated && p.name === trimmed,
+        )
+        const playlist: Playlist = existingPl
+          ? { ...existingPl, trackIds: ids, updatedAt: now }
+          : {
+              id: uid("pl"),
+              name: trimmed,
+              trackIds: ids,
+              createdAt: now,
+              updatedAt: now,
+            }
+        const playlists = existingPl
+          ? s.playlists.map((p) => (p.id === existingPl.id ? playlist : p))
+          : [playlist, ...s.playlists]
+
+        const [first, ...rest] = ids
+        set({
+          tracks: ensureTrackBPMs([...s.tracks, ...toAdd]),
+          playlists,
+          guestTracks: [],
+          guestSetName: null,
+          previewTrack: null,
+          nowPlayingId: first,
+          selectedId: first,
+          queue: rest,
+          youtubePlayBestOf: false,
+        })
+        return playlist
+      },
+
       ingestDiscoveredTracks: (inputs) => {
         if (inputs.length === 0) return []
         const s = get()
@@ -972,17 +1050,19 @@ export const useVaultStore = create<VaultState>()(
 
       setSimilarTo: (id) => set({ similarToId: id }),
 
-      requestYoutubeSearch: (query) => {
+      requestYoutubeSearch: (query, opts) => {
         const q = (query ?? get().filters.query).trim()
         if (!q) return
         set((s) => ({
           youtubeSearchQuery: q,
           youtubeSearchSeq: s.youtubeSearchSeq + 1,
+          youtubePlayBestOf: Boolean(opts?.playBestOf),
           filters: { ...s.filters, query: q },
         }))
       },
 
-      clearYoutubeSearch: () => set({ youtubeSearchQuery: null }),
+      clearYoutubeSearch: () =>
+        set({ youtubeSearchQuery: null, youtubePlayBestOf: false }),
 
       setSetMode: (open) => set({ setMode: open }),
 
@@ -1055,6 +1135,7 @@ export const useVaultStore = create<VaultState>()(
           guestTracks: [],
           guestSetName: null,
           previewTrack: null,
+          youtubePlayBestOf: false,
           publishedSeeds: null,
           publishedPlaylists: null,
           awaitingPublishedSeeds: !tracksPersisted,

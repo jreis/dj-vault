@@ -7,7 +7,9 @@ import {
 } from "../lib/guessTrackMeta"
 import {
   DiscoverError,
+  looksLikeArtistQuery,
   searchYouTubeVideos,
+  titleCaseQuery,
   type DiscoverVideo,
 } from "../lib/youtubeDiscover"
 import { useVaultStore } from "../store/useVaultStore"
@@ -23,6 +25,7 @@ export function YoutubeSearchPanel() {
   const youtubeSearchSeq = useVaultStore((s) => s.youtubeSearchSeq)
   const requestYoutubeSearch = useVaultStore((s) => s.requestYoutubeSearch)
   const clearYoutubeSearch = useVaultStore((s) => s.clearYoutubeSearch)
+  const playArtistBestOf = useVaultStore((s) => s.playArtistBestOf)
   const addTrack = useVaultStore((s) => s.addTrack)
   const playPreview = useVaultStore((s) => s.playPreview)
   const enqueueNext = useVaultStore((s) => s.enqueueNext)
@@ -56,9 +59,63 @@ export function YoutubeSearchPanel() {
     () => results.filter((v) => !vaultYtIds.has(v.youtubeId)),
     [results, vaultYtIds],
   )
+  const artistQuery = looksLikeArtistQuery(activeQuery || typedQuery)
+  const artistLabel = titleCaseQuery(activeQuery || typedQuery)
+
+  function scrollToPlayer() {
+    queueMicrotask(() => {
+      document
+        .querySelector('[aria-label="Player and queue"]')
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    })
+  }
+
+  function startBestOfSet(query: string, videos: DiscoverVideo[]) {
+    const artistName = titleCaseQuery(query)
+    const name = `Best of ${artistName}`
+    const needle = query.toLowerCase()
+    const vaultHits = useVaultStore
+      .getState()
+      .tracks.filter(
+        (t) =>
+          t.artist.toLowerCase().includes(needle) ||
+          t.title.toLowerCase().includes(needle),
+      )
+    const discoveries = videos.map((video) => {
+      const meta = guessTrackMeta({
+        query,
+        videoTitle: video.title,
+        channelTitle: video.channelTitle,
+      })
+      return {
+        ...meta,
+        artist: artistName || meta.artist,
+        youtubeId: video.youtubeId,
+        notes: `Best of ${artistName}`,
+      }
+    })
+    const pl = playArtistBestOf(
+      name,
+      vaultHits.map((t) => t.id),
+      discoveries,
+    )
+    if (!pl) {
+      showToast(`No songs found for “${query}”.`, "error")
+      return
+    }
+    showToast(
+      `Added playlist “${pl.name}” · ${pl.trackIds.length} song${pl.trackIds.length === 1 ? "" : "s"}`,
+      "success",
+    )
+    scrollToPlayer()
+  }
+
+  const startBestOfSetRef = useRef(startBestOfSet)
+  startBestOfSetRef.current = startBestOfSet
 
   useEffect(() => {
     if (!activeQuery) return
+    if (useVaultStore.getState().youtubePlayBestOf) return
     document
       .getElementById("youtube-search-panel")
       ?.scrollIntoView({ block: "nearest", behavior: "smooth" })
@@ -78,11 +135,24 @@ export function YoutubeSearchPanel() {
     setError(null)
     setErrorCode(null)
 
-    searchYouTubeVideos(activeQuery, excludeRef.current, ac.signal)
+    const playBest = useVaultStore.getState().youtubePlayBestOf
+    const exclude = playBest ? new Set<string>() : excludeRef.current
+
+    searchYouTubeVideos(activeQuery, exclude, ac.signal)
       .then((res) => {
         if (ac.signal.aborted) return
         setResults(res.items)
         setStatus("ready")
+        if (useVaultStore.getState().youtubePlayBestOf) {
+          if (res.items.length === 0) {
+            useVaultStore.setState({ youtubePlayBestOf: false })
+            useToastStore
+              .getState()
+              .show(`No popular videos found for “${activeQuery}”.`, "error")
+          } else {
+            startBestOfSetRef.current(activeQuery, res.items)
+          }
+        }
       })
       .catch((err: unknown) => {
         if (ac.signal.aborted) return
@@ -94,18 +164,19 @@ export function YoutubeSearchPanel() {
           setErrorCode("upstream")
         }
         setStatus("error")
+        if (useVaultStore.getState().youtubePlayBestOf) {
+          useVaultStore.setState({ youtubePlayBestOf: false })
+          useToastStore.getState().show(
+            err instanceof DiscoverError
+              ? err.message
+              : "Could not load popular songs from YouTube.",
+            "error",
+          )
+        }
       })
 
     return () => ac.abort()
   }, [activeQuery, youtubeSearchSeq])
-
-  function scrollToPlayer() {
-    queueMicrotask(() => {
-      document
-        .querySelector('[aria-label="Player and queue"]')
-        ?.scrollIntoView({ block: "nearest", behavior: "smooth" })
-    })
-  }
 
   function previewVideo(video: DiscoverVideo) {
     const meta = guessTrackMeta({
@@ -189,7 +260,7 @@ export function YoutubeSearchPanel() {
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-vault-border px-4 py-3">
         <div className="min-w-0">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-vault-amber">
-            Search YouTube
+            {artistQuery ? "Best of" : "Search YouTube"}
           </h2>
           <p className="mt-0.5 text-sm text-vault-text">
             {showPrompt ? (
@@ -197,6 +268,13 @@ export function YoutubeSearchPanel() {
                 Nothing in the vault for{" "}
                 <span className="font-medium text-vault-amber">
                   “{typedQuery}”
+                </span>
+              </>
+            ) : activeQuery && artistQuery ? (
+              <>
+                Best-known songs for{" "}
+                <span className="font-medium text-vault-amber">
+                  {artistLabel}
                 </span>
               </>
             ) : activeQuery ? (
@@ -211,20 +289,39 @@ export function YoutubeSearchPanel() {
             )}
           </p>
           <p className="mt-0.5 text-[11px] text-vault-muted/80">
-            Preview to listen first. Add keeps it in the vault. Genre and year
-            are guessed — edit later if needed.
+            {artistQuery
+              ? "Play best of adds their most-played videos to a playlist in your vault."
+              : "Preview to listen first. Add keeps it in the vault. Genre and year are guessed — edit later if needed."}
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-1.5">
           {showPrompt && (
             <button
               type="button"
-              onClick={() => requestYoutubeSearch(typedQuery)}
+              onClick={() =>
+                requestYoutubeSearch(typedQuery, {
+                  playBestOf: looksLikeArtistQuery(typedQuery),
+                })
+              }
               className="rounded-lg bg-vault-amber px-2.5 py-1 text-xs font-medium text-stone-950 hover:bg-amber-400"
             >
-              Search YouTube
+              {looksLikeArtistQuery(typedQuery)
+                ? `Play best of ${titleCaseQuery(typedQuery)}`
+                : "Search YouTube"}
             </button>
           )}
+          {activeQuery &&
+            artistQuery &&
+            visibleResults.length > 0 &&
+            status === "ready" && (
+              <button
+                type="button"
+                onClick={() => startBestOfSet(activeQuery, results)}
+                className="rounded-lg bg-vault-amber px-2.5 py-1 text-xs font-medium text-stone-950 hover:bg-amber-400"
+              >
+                Play best of {artistLabel}
+              </button>
+            )}
           {activeQuery && (
             <button
               type="button"

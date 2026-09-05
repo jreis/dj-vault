@@ -5,6 +5,10 @@ import {
   genreCounts,
   hasActiveFilters,
 } from "../lib/filterTracks"
+import {
+  looksLikeArtistQuery,
+  titleCaseQuery,
+} from "../lib/youtubeDiscover"
 import { useVaultStore } from "../store/useVaultStore"
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
@@ -36,6 +40,9 @@ export function FilterBar() {
     () => filterAndSortTracks(tracks, filters).map((t) => t.id),
     [tracks, filters],
   )
+  const typedQuery = filters.query.trim()
+  const artistQuery = looksLikeArtistQuery(typedQuery)
+  const artistLabel = artistQuery ? titleCaseQuery(typedQuery) : ""
 
   return (
     <div className="space-y-3">
@@ -52,14 +59,17 @@ export function FilterBar() {
               <input
                 id="vault-search"
                 type="search"
-                placeholder="Title, artist… or Coltrane"
+                placeholder="Elvis, Coltrane, Metallica…"
                 value={filters.query}
                 onChange={(e) => setFilters({ query: e.target.value })}
                 onKeyDown={(e) => {
                   if (e.key !== "Enter") return
                   e.preventDefault()
                   const q = e.currentTarget.value.trim()
-                  if (q) useVaultStore.getState().requestYoutubeSearch(q)
+                  if (!q) return
+                  useVaultStore.getState().requestYoutubeSearch(q, {
+                    playBestOf: looksLikeArtistQuery(q),
+                  })
                 }}
                 className="w-full rounded-lg border border-vault-border bg-vault-elevated py-2 pl-3 pr-9 text-sm text-vault-text placeholder:text-vault-muted/60 focus:border-vault-amber focus:outline-none"
               />
@@ -74,19 +84,32 @@ export function FilterBar() {
                 </button>
               )}
             </div>
-            <button
-              type="button"
-              disabled={!filters.query.trim()}
-              onClick={() =>
-                useVaultStore
-                  .getState()
-                  .requestYoutubeSearch(filters.query)
-              }
-              className="shrink-0 rounded-lg border border-vault-border px-3 py-2 text-sm font-medium text-vault-text hover:border-vault-amber hover:text-vault-amber disabled:cursor-not-allowed disabled:opacity-40"
-              title="Search YouTube — preview, then add (Enter)"
-            >
-              YouTube
-            </button>
+            {artistQuery ? (
+              <button
+                type="button"
+                onClick={() =>
+                  useVaultStore.getState().requestYoutubeSearch(typedQuery, {
+                    playBestOf: true,
+                  })
+                }
+                className="shrink-0 rounded-lg bg-vault-amber px-3 py-2 text-sm font-medium text-stone-950 hover:bg-amber-400"
+                title={`Add ${artistLabel}'s most popular songs as a playlist and play them`}
+              >
+                Play best of {artistLabel}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={!typedQuery}
+                onClick={() =>
+                  useVaultStore.getState().requestYoutubeSearch(typedQuery)
+                }
+                className="shrink-0 rounded-lg border border-vault-border px-3 py-2 text-sm font-medium text-vault-text hover:border-vault-amber hover:text-vault-amber disabled:cursor-not-allowed disabled:opacity-40"
+                title="Search YouTube — preview, then add (Enter)"
+              >
+                YouTube
+              </button>
+            )}
           </div>
         </label>
 

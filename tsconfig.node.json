@@ -26,6 +26,7 @@
     "scripts/seed-dev-api.ts",
     "scripts/seed-source.ts",
     "scripts/seed-catalog.test.ts",
+    "scripts/youtube-search.test.ts",
     "functions/_lib/youtubeSimilar.ts",
     "functions/_lib/seedCatalog.ts"
   ]

@@ -67,7 +67,7 @@ export function SharedSetBanner() {
     <div
       className="border-b border-vault-blue/40 bg-vault-blue/10 px-4 py-3 text-sm"
       role="status"
-      aria-label="Shared set playing"
+      aria-label="Playing set"
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-vault-text">
