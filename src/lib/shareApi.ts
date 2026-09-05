@@ -1,12 +1,13 @@
 import {
   buildShareUrl,
-  buildShortShareUrl,
+  buildSocialShareUrl,
   decodeSharePayload,
   encodeSharePayload,
   isShareUrlTooLong,
   tracksToSharePayload,
   type ParsedShare,
 } from "./shareLink"
+import { buildTrackShareSet, trackShareSetName } from "./trackShare"
 import type { Track } from "../types"
 
 export type ShareCreateResult =
@@ -37,7 +38,7 @@ export async function createShareLink(
     if (res.ok) {
       const data = (await res.json()) as { id?: string }
       if (data.id && /^[a-zA-Z0-9_-]{4,32}$/.test(data.id)) {
-        return { ok: true, url: buildShortShareUrl(data.id), short: true }
+        return { ok: true, url: buildSocialShareUrl(data.id), short: true }
       }
     }
     // 503 / missing KV → fall through to hash URL
@@ -53,6 +54,59 @@ export async function createShareLink(
     }
   }
   return { ok: true, url, short: false }
+}
+
+export type TrackShareCreateResult =
+  | {
+      ok: true
+      url: string
+      short: boolean
+      name: string
+      count: number
+    }
+  | { ok: false; error: string }
+
+/** Seed + similar vault tracks, ready to paste on social. */
+export async function createTrackShareLink(
+  seed: Track,
+  library: Track[],
+): Promise<TrackShareCreateResult> {
+  const tracks = buildTrackShareSet(seed, library)
+  const name = trackShareSetName(seed)
+  const result = await createShareLink(tracks, { name })
+  if (!result.ok) return result
+  return { ...result, name, count: tracks.length }
+}
+
+export async function publishShareUrl(opts: {
+  url: string
+  title: string
+  text: string
+}): Promise<"shared" | "copied" | "prompt" | "cancelled"> {
+  const share = (
+    navigator as Navigator & {
+      share?: (data: ShareData) => Promise<void>
+    }
+  ).share
+  if (typeof share === "function") {
+    try {
+      await share.call(navigator, {
+        title: opts.title,
+        text: opts.text,
+        url: opts.url,
+      })
+      return "shared"
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return "cancelled"
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(opts.url)
+    return "copied"
+  } catch {
+    window.prompt("Copy this share link:", opts.url)
+    return "prompt"
+  }
 }
 
 /** Resolve a short share id to tracks (+ optional name). */

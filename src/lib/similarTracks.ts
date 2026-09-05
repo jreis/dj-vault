@@ -1,5 +1,5 @@
-import type { Era, Genre, Track } from "../types"
-import { getArtistSimilarity, getSimilarArtists } from "./artistRelations"
+import type { Era, Genre, Track } from "../types.ts"
+import { getArtistSimilarity, getSimilarArtists } from "./artistRelations.ts"
 
 export interface SimilarMatch {
   track: Track

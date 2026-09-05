@@ -2,6 +2,7 @@ import type { Track } from "../types"
 import { useVaultStore } from "../store/useVaultStore"
 import { youtubeThumbUrl } from "../lib/youtube"
 import { AddToPlaylistMenu } from "./AddToPlaylistMenu"
+import { ShareTrackButton } from "./ShareTrackButton"
 
 interface TrackTableProps {
   tracks: Track[]
@@ -244,6 +245,10 @@ export function TrackTable({ tracks }: TrackTableProps) {
                     >
                       Similar
                     </button>
+                    <ShareTrackButton
+                      track={track}
+                      className="min-h-9 rounded-md border border-vault-border px-3 py-1 text-xs text-vault-muted hover:border-vault-amber hover:text-vault-amber disabled:opacity-40"
+                    />
                     <div onClick={(e) => e.stopPropagation()}>
                       <AddToPlaylistMenu trackId={track.id} trackTitle={track.title} />
                     </div>
@@ -280,7 +285,7 @@ export function TrackTable({ tracks }: TrackTableProps) {
                   Vote
                 </th>
                 <th className="min-w-0 px-3 py-2.5 font-medium">Track</th>
-                <th className="w-60 px-2 py-2.5 text-right font-medium">
+                <th className="w-72 px-2 py-2.5 text-right font-medium">
                   Actions
                 </th>
               </tr>
@@ -425,6 +430,11 @@ export function TrackTable({ tracks }: TrackTableProps) {
                         >
                           Similar
                         </button>
+                        <ShareTrackButton
+                          track={track}
+                          compact
+                          className="rounded-md border border-vault-border px-2 py-1 text-xs text-vault-muted hover:border-vault-amber hover:text-vault-amber disabled:opacity-40"
+                        />
                         <div onClick={(e) => e.stopPropagation()}>
                           <AddToPlaylistMenu
                             trackId={track.id}

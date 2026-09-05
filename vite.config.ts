@@ -10,6 +10,10 @@ import {
   getDevShare,
 } from "./scripts/share-dev-store.ts"
 import { seedDevApi } from "./scripts/seed-dev-api.ts"
+import {
+  htmlForShare,
+  renderShareMissingHtml,
+} from "./functions/_lib/shareLanding.ts"
 
 /** Dev-only /api/youtube/similar + /api/youtube/search so local SPA can discover without wrangler. */
 function youtubeSimilarDevApi(env: {
@@ -120,6 +124,26 @@ function shareDevApi(): Plugin {
           res.statusCode = 200
           res.setHeader("Content-Type", "application/json; charset=utf-8")
           res.end(JSON.stringify({ encoded: result.encoded }))
+          return
+        }
+
+        // GET /s/:id — social landing (OG + bounce into the vault)
+        const social = path.match(/^\/s\/([a-zA-Z0-9_-]{4,32})$/)
+        if (social && req.method === "GET") {
+          const host = req.headers.host ?? "localhost:5173"
+          const proto = host.startsWith("localhost") ? "http" : "https"
+          const origin = `${proto}://${host}`
+          const id = social[1]!
+          const result = getDevShare(id)
+          if (!result.ok) {
+            res.statusCode = result.status === 400 ? 404 : result.status
+            res.setHeader("Content-Type", "text/html; charset=utf-8")
+            res.end(renderShareMissingHtml(origin))
+            return
+          }
+          res.statusCode = 200
+          res.setHeader("Content-Type", "text/html; charset=utf-8")
+          res.end(htmlForShare(origin, id, result.encoded))
           return
         }
 

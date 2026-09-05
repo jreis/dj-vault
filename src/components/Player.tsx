@@ -13,6 +13,7 @@ import {
 import type { Track } from "../types"
 import { AudioVisualizer } from "./AudioVisualizer"
 import { AddToPlaylistMenu } from "./AddToPlaylistMenu"
+import { ShareTrackButton } from "./ShareTrackButton"
 import { useToastStore } from "../store/useToastStore"
 
 /** Auto-skip delay after an unavailable embed so the user can read the message. */
@@ -503,6 +504,14 @@ export function Player() {
                   >
                     YouTube ↗
                   </a>
+                  <ShareTrackButton
+                    track={current}
+                    className={
+                      setMode
+                        ? "min-h-9 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-stone-300 hover:text-amber-400 disabled:opacity-40"
+                        : "min-h-9 rounded-lg border border-vault-border px-3 py-1.5 text-xs text-vault-muted hover:border-vault-amber hover:text-vault-amber disabled:opacity-40"
+                    }
+                  />
                   {isPreview ? (
                     <button
                       type="button"
