@@ -841,6 +841,7 @@ export function Player() {
                       type="button"
                       onClick={() => play(t.id)}
                       className="min-w-0 flex-1 text-left"
+                      title={`${t.title} — ${t.artist}`}
                     >
                       <span className="block truncate text-sm font-medium text-stone-100">
                         {t.title}
@@ -907,6 +908,7 @@ export function Player() {
                       type="button"
                       onClick={() => play(t.id)}
                       className="min-w-0 flex-1 truncate text-left hover:text-vault-amber"
+                      title={`${t.title} — ${t.artist}`}
                     >
                       <span className="text-vault-text">{t.title}</span>
                       <span className="text-vault-muted"> — {t.artist}</span>

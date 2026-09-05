@@ -8,6 +8,10 @@ interface TrackTableProps {
   tracks: Track[]
 }
 
+function songTooltip(track: Track): string {
+  return `${track.title} — ${track.artist}`
+}
+
 export function TrackTable({ tracks }: TrackTableProps) {
   const selectedId = useVaultStore((s) => s.selectedId)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
@@ -133,7 +137,10 @@ export function TrackTable({ tracks }: TrackTableProps) {
                   </button>
                 </div>
 
-                <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-md bg-vault-elevated">
+                <div
+                  className="relative h-14 w-20 shrink-0 overflow-hidden rounded-md bg-vault-elevated"
+                  title={songTooltip(track)}
+                >
                   <img
                     src={youtubeThumbUrl(track.youtubeId)}
                     alt=""
@@ -151,7 +158,7 @@ export function TrackTable({ tracks }: TrackTableProps) {
                   )}
                 </div>
 
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1" title={songTooltip(track)}>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="truncate font-medium text-vault-text">
                       {track.title}
@@ -334,7 +341,10 @@ export function TrackTable({ tracks }: TrackTableProps) {
                     </td>
 
                     <td className="min-w-0 px-3 py-2.5 align-middle">
-                      <div className="flex min-w-0 items-center gap-3">
+                      <div
+                        className="flex min-w-0 items-center gap-3"
+                        title={songTooltip(track)}
+                      >
                         <div className="relative h-10 w-16 shrink-0 overflow-hidden rounded bg-vault-elevated">
                           <img
                             src={youtubeThumbUrl(track.youtubeId)}
