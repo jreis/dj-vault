@@ -17,8 +17,6 @@ import { useToastStore } from "../store/useToastStore"
 
 /** Auto-skip delay after an unavailable embed so the user can read the message. */
 const UNAVAILABLE_SKIP_MS = 2500
-/** Actual (non-paused) listening time before we auto-surface similar tracks. */
-const AUTO_SIMILAR_LISTEN_MS = 60_000
 
 export function Player() {
   const tracks = useVaultStore((s) => s.tracks)
@@ -64,8 +62,6 @@ export function Player() {
   const wiredTrackIdRef = useRef<string | null>(null)
   const playNextRef = useRef(playNext)
   playNextRef.current = playNext
-  /** Track ids that already auto-surfaced the Similar panel this session. */
-  const autoSimilarShownRef = useRef<Set<string>>(new Set())
 
   const [unavailable, setUnavailable] = useState<string | null>(null)
   const [playerReady, setPlayerReady] = useState(false)
@@ -104,34 +100,8 @@ export function Player() {
 
     let cancelled = false
     let skipTimer: ReturnType<typeof setTimeout> | null = null
-    let listenTimer: ReturnType<typeof setInterval> | null = null
-    let listenedMs = 0
     const host = hostRef.current
     if (!host) return
-
-    const stopListenTimer = () => {
-      if (listenTimer) {
-        clearInterval(listenTimer)
-        listenTimer = null
-      }
-    }
-
-    const startListenTimer = () => {
-      if (useVaultStore.getState().previewTrack?.id === trackId) return
-      if (listenTimer || autoSimilarShownRef.current.has(trackId)) return
-      listenTimer = setInterval(() => {
-        listenedMs += 1000
-        if (listenedMs < AUTO_SIMILAR_LISTEN_MS) return
-        stopListenTimer()
-        if (autoSimilarShownRef.current.has(trackId)) return
-        autoSimilarShownRef.current.add(trackId)
-        const state = useVaultStore.getState()
-        if (state.nowPlayingId === trackId && state.similarToId === null) {
-          state.setSimilarTo(trackId)
-          showToast("You're into this one — found more like it", "info")
-        }
-      }, 1000)
-    }
 
     // YT.Player replaces the host node; keep a stable mount point via a child.
     host.replaceChildren()
@@ -160,19 +130,12 @@ export function Player() {
       },
       onEnded: () => {
         if (cancelled || wiredTrackIdRef.current !== trackId) return
-        stopListenTimer()
         playNextRef.current()
       },
       onError: (code) => {
         if (cancelled || wiredTrackIdRef.current !== trackId) return
-        stopListenTimer()
         setUnavailable(youtubeErrorMessage(code))
         scheduleSkip()
-      },
-      onPlaybackStateChange: (isPlaying) => {
-        if (cancelled || wiredTrackIdRef.current !== trackId) return
-        if (isPlaying) startListenTimer()
-        else stopListenTimer()
       },
     })
       .then((player) => {
@@ -195,7 +158,6 @@ export function Player() {
     return () => {
       cancelled = true
       if (skipTimer) clearTimeout(skipTimer)
-      stopListenTimer()
       setActiveYtPlayer(null)
       playerRef.current?.destroy()
       playerRef.current = null

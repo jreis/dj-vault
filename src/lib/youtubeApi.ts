@@ -135,8 +135,6 @@ export interface CreatePlayerOptions {
   onEnded?: () => void
   onError?: (code: number) => void
   onReady?: () => void
-  /** Fires on every state change with whether the video is actively playing. */
-  onPlaybackStateChange?: (isPlaying: boolean) => void
 }
 
 /**
@@ -185,8 +183,6 @@ export async function createYouTubePlayer(
           if (e.data === 0 || e.data === YT.PlayerState?.ENDED) {
             options.onEnded?.()
           }
-          const playingCode = YT.PlayerState?.PLAYING ?? 1
-          options.onPlaybackStateChange?.(e.data === playingCode)
         },
       },
     })
