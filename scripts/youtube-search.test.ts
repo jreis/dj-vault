@@ -28,4 +28,30 @@ describe("videoMatchesArtistQuery", () => {
       false,
     )
   })
+
+  it("keeps Linda Ronstadt videos when the last name is misspelled", () => {
+    assert.equal(
+      videoMatchesArtistQuery(
+        {
+          title: "Linda Ronstadt - Blue Bayou (Official Audio)",
+          channelTitle: "LindaRonstadtVEVO",
+        },
+        "linda ronstandt",
+      ),
+      true,
+    )
+  })
+
+  it("matches a two-word artist against a compound VEVO channel", () => {
+    assert.equal(
+      videoMatchesArtistQuery(
+        {
+          title: "You're No Good",
+          channelTitle: "LindaRonstadtVEVO",
+        },
+        "linda ronstadt",
+      ),
+      true,
+    )
+  })
 })

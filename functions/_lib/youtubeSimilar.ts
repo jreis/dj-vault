@@ -193,21 +193,65 @@ function looksLikeArtistQuery(q: string): boolean {
 
 const ARTIST_STOP = new Set(["the", "a", "an", "of", "and", "dj"])
 
+function artistTokens(q: string): string[] {
+  const tokens = q
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length > 1 && !ARTIST_STOP.has(t))
+  return tokens.length > 0
+    ? tokens
+    : q.toLowerCase().split(/\s+/).filter(Boolean)
+}
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0
+  if (a.length === 0) return b.length
+  if (b.length === 0) return a.length
+  const row: number[] = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    let prev = i - 1
+    row[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const cur = row[j]!
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      row[j] = Math.min(row[j]! + 1, row[j - 1]! + 1, prev + cost)
+      prev = cur
+    }
+  }
+  return row[b.length]!
+}
+
+/** Token matches a hay word, including 1-edit typos on longer names. */
+function tokenMatchesHay(token: string, hay: string, words: string[]): boolean {
+  if (hay.includes(token)) return true
+  for (const w of words) {
+    if (w === token || w.includes(token)) return true
+    if (token.length < 5) continue
+    if (Math.abs(w.length - token.length) <= 1 && levenshtein(token, w) <= 1) {
+      return true
+    }
+    if (w.length > token.length + 1) {
+      const lo = token.length - 1
+      const hi = token.length + 1
+      for (let len = Math.max(4, lo); len <= Math.min(w.length, hi); len++) {
+        for (let i = 0; i + len <= w.length; i++) {
+          if (levenshtein(w.slice(i, i + len), token) <= 1) return true
+        }
+      }
+    }
+  }
+  return false
+}
+
 /** Keep videos that actually name the artist in the title or channel. */
 export function videoMatchesArtistQuery(
   item: { title: string; channelTitle: string },
   q: string,
 ): boolean {
   const hay = `${item.title} ${item.channelTitle}`.toLowerCase()
-  const tokens = q
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((t) => t.length > 1 && !ARTIST_STOP.has(t))
-  const need =
-    tokens.length > 0
-      ? tokens
-      : q.toLowerCase().split(/\s+/).filter(Boolean)
-  return need.length > 0 && need.every((t) => hay.includes(t))
+  const words = hay.split(/[^a-z0-9]+/).filter(Boolean)
+  const need = artistTokens(q)
+  return need.length > 0 && need.every((t) => tokenMatchesHay(t, hay, words))
 }
 
 function parseExcludeIds(raw: string): Set<string> {
@@ -399,7 +443,7 @@ export async function handleTrackSearch(
   const searchQuery = artistLike ? `${q} top songs` : q
   const order = artistLike ? "viewCount" : "relevance"
 
-  const result = await runYouTubeSearch(
+  let result = await runYouTubeSearch(
     searchQuery,
     exclude,
     env,
@@ -407,6 +451,13 @@ export async function handleTrackSearch(
     artistLike ? 15 : 12,
     artistLike ? q : undefined,
   )
+  const empty =
+    result.status === 200 &&
+    Array.isArray(result.body.items) &&
+    result.body.items.length === 0
+  if (artistLike && empty) {
+    result = await runYouTubeSearch(q, exclude, env, "relevance", 15, q)
+  }
   if (result.status === 200) {
     result.body.query = q
   }
