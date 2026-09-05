@@ -1,8 +1,9 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { Track } from "../types"
 import { SEED_TRACKS } from "../data/seedTracks"
 import { clearShareHash } from "../lib/shareLink"
 import { createShareLink } from "../lib/shareApi"
+import { consumeCuratorUnlock, shouldShowSeedPublisher } from "../lib/curator"
 import { fetchPublishedSeeds, publishSeeds } from "../lib/seedApi"
 import { useVaultStore } from "../store/useVaultStore"
 import { useToastStore } from "../store/useToastStore"
@@ -46,6 +47,23 @@ export function Toolbar() {
   const [seedBusy, setSeedBusy] = useState(false)
   const seedCount = (publishedSeeds ?? SEED_TRACKS).length
   const needsSeedPassword = !import.meta.env.DEV
+  const [showSeedPublisher, setShowSeedPublisher] = useState(
+    () => import.meta.env.DEV,
+  )
+
+  useEffect(() => {
+    setShowSeedPublisher(
+      shouldShowSeedPublisher({
+        isDev: import.meta.env.DEV,
+        href: window.location.href,
+        sessionUnlocked: consumeCuratorUnlock(
+          window.location,
+          window.history,
+          window.localStorage,
+        ),
+      }),
+    )
+  }, [])
 
   function exportJson(source: "library" | "queue" | "set") {
     let list = tracks
@@ -248,14 +266,16 @@ export function Toolbar() {
             e.target.value = ""
           }}
         />
-        <button
-          type="button"
-          onClick={openSeedDialog}
-          className="rounded-lg border border-vault-border px-2.5 py-1.5 text-vault-muted hover:border-vault-amber hover:text-vault-amber"
-          title="Publish the current vault as the starter library (password required on the live site)"
-        >
-          Save as seed
-        </button>
+        {showSeedPublisher && (
+          <button
+            type="button"
+            onClick={openSeedDialog}
+            className="rounded-lg border border-vault-border px-2.5 py-1.5 text-vault-muted hover:border-vault-amber hover:text-vault-amber"
+            title="Publish the current vault as the starter library (password required on the live site)"
+          >
+            Save as seed
+          </button>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -375,7 +395,7 @@ export function Toolbar() {
         </div>
       )}
 
-      {seedDialogOpen && (
+      {showSeedPublisher && seedDialogOpen && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
           role="dialog"
