@@ -7,6 +7,11 @@ const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: "/", action: "Focus search" },
   { keys: "Enter in search", action: "Search YouTube for that query" },
   { keys: "j / k  or  ↓ / ↑", action: "Move selection" },
+  { keys: "gg / 0 / Home", action: "First track" },
+  { keys: "G / $ / End", action: "Last track" },
+  { keys: "5j / 10k / 3G", action: "Counted move (vim)" },
+  { keys: "Ctrl-d / Ctrl-u", action: "Jump half a page" },
+  { keys: "zz", action: "Center selected track" },
   { keys: "Enter", action: "Play selected track" },
   { keys: "u / d", action: "Upvote / downvote" },
   { keys: "q", action: "Add selected to queue" },
@@ -68,13 +73,21 @@ export function ShortcutsModal({ open, onClose }: ShortcutsModalProps) {
           <kbd className="rounded border border-vault-border px-1 font-mono">
             Esc
           </kbd>{" "}
-          to blur, then navigate with{" "}
+          to blur, then move with{" "}
           <kbd className="rounded border border-vault-border px-1 font-mono">
             j
           </kbd>
           /
           <kbd className="rounded border border-vault-border px-1 font-mono">
             k
+          </kbd>
+          ,{" "}
+          <kbd className="rounded border border-vault-border px-1 font-mono">
+            gg
+          </kbd>
+          /{" "}
+          <kbd className="rounded border border-vault-border px-1 font-mono">
+            G
           </kbd>
           .
         </p>
