@@ -2,7 +2,7 @@ export {
   parseSeedTrackPayload,
   tracksToSeedRecords,
 } from "../functions/_lib/seedCatalog.ts"
-import type { Track } from "../src/types.ts"
+import type { Playlist, Track } from "../src/types.ts"
 
 export function renderSeedTracksArray(tracks: Track[]): string {
   const objects = tracks.map((t) => {
@@ -18,6 +18,29 @@ export function renderSeedTracksArray(tracks: Track[]): string {
       `    notes: ${JSON.stringify(t.notes)},`,
       `    addedAt: ${JSON.stringify(t.addedAt)},`,
     ]
+    return `  {\n${lines.join("\n")}\n  },`
+  })
+  return `[\n${objects.join("\n")}\n]`
+}
+
+export function renderSeedPlaylistsArray(playlists: Playlist[]): string {
+  if (playlists.length === 0) return "[]"
+  const objects = playlists.map((p) => {
+    const trackIds =
+      p.trackIds.length === 0
+        ? "[]"
+        : `[\n${p.trackIds.map((id) => `      ${JSON.stringify(id)},`).join("\n")}\n    ]`
+    const lines = [
+      `    id: ${JSON.stringify(p.id)},`,
+      `    name: ${JSON.stringify(p.name)},`,
+    ]
+    if (p.description) {
+      lines.push(`    description: ${JSON.stringify(p.description)},`)
+    }
+    lines.push(`    trackIds: ${trackIds},`)
+    lines.push(`    curated: true,`)
+    lines.push(`    createdAt: ${JSON.stringify(p.createdAt)},`)
+    lines.push(`    updatedAt: ${JSON.stringify(p.updatedAt)},`)
     return `  {\n${lines.join("\n")}\n  },`
   })
   return `[\n${objects.join("\n")}\n]`

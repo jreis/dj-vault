@@ -1,30 +1,36 @@
 import fs from "node:fs"
 import path from "node:path"
 import type { Plugin } from "vite"
-import type { Track } from "../src/types.ts"
+import type { Playlist, Track } from "../src/types.ts"
 import {
+  catalogToSeedRecords,
+  parseSeedPlaylistPayload,
   parseSeedTrackPayload,
   passwordMatches,
-  tracksToSeedRecords,
 } from "../functions/_lib/seedCatalog.ts"
 import {
   maxSeedIdInSource,
   replaceExportedArray,
+  renderSeedPlaylistsArray,
   renderSeedTracksArray,
 } from "./seed-source.ts"
 
 const SEED_TRACKS_PATH = path.resolve("src/data/seedTracks.ts")
+const SEED_PLAYLISTS_PATH = path.resolve("src/data/seedPlaylists.ts")
 const JSON_TYPE = "application/json; charset=utf-8"
+
+type PublishedDevCatalog = { tracks: Track[]; playlists: Playlist[] }
 
 /**
  * Dev stand-in for /api/seed.
  *
  * GET  → in-memory published catalog (null until you save this session)
  * POST → password-gated when SEED_ADMIN_SECRET is set; always writes
- *        src/data/seedTracks.ts so git stays the source of truth locally.
+ *        src/data/seedTracks.ts and src/data/seedPlaylists.ts so git stays
+ *        the source of truth locally.
  */
 export function seedDevApi(env: { SEED_ADMIN_SECRET?: string }): Plugin {
-  let published: Track[] | null = null
+  let published: PublishedDevCatalog | null = null
 
   return {
     name: "seed-dev-api",
@@ -44,7 +50,12 @@ export function seedDevApi(env: { SEED_ADMIN_SECRET?: string }): Plugin {
           res.statusCode = 200
           res.setHeader("Content-Type", JSON_TYPE)
           res.setHeader("Cache-Control", "no-store")
-          res.end(JSON.stringify({ tracks: published }))
+          res.end(
+            JSON.stringify({
+              tracks: published?.tracks ?? null,
+              playlists: published?.playlists ?? null,
+            }),
+          )
           return
         }
 
@@ -59,10 +70,15 @@ export function seedDevApi(env: { SEED_ADMIN_SECRET?: string }): Plugin {
             chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk)
           }
           const raw = Buffer.concat(chunks).toString("utf8")
-          let body: { tracks?: unknown; password?: unknown } = {}
+          let body: {
+            tracks?: unknown
+            playlists?: unknown
+            password?: unknown
+          } = {}
           try {
             body = JSON.parse(raw) as {
               tracks?: unknown
+              playlists?: unknown
               password?: unknown
             }
           } catch {
@@ -92,26 +108,55 @@ export function seedDevApi(env: { SEED_ADMIN_SECRET?: string }): Plugin {
             return
           }
 
+          const parsedPlaylists =
+            body.playlists === undefined
+              ? (published?.playlists ?? [])
+              : parseSeedPlaylistPayload(body.playlists)
+          if (parsedPlaylists === null) {
+            res.statusCode = 400
+            res.setHeader("Content-Type", JSON_TYPE)
+            res.end(
+              JSON.stringify({
+                error: "Playlists must be an array of valid playlists.",
+              }),
+            )
+            return
+          }
+
           const current = fs.readFileSync(SEED_TRACKS_PATH, "utf8")
-          const seeds = tracksToSeedRecords(parsed, {
+          const catalog = catalogToSeedRecords(parsed, parsedPlaylists, {
             reservedMax: maxSeedIdInSource(current),
           })
-          const next = replaceExportedArray(
+          const nextTracks = replaceExportedArray(
             current,
             "SEED_TRACKS",
-            renderSeedTracksArray(seeds),
+            renderSeedTracksArray(catalog.tracks),
           )
-          fs.writeFileSync(SEED_TRACKS_PATH, next)
-          published = seeds
+          fs.writeFileSync(SEED_TRACKS_PATH, nextTracks)
+          const currentPlaylists = fs.readFileSync(SEED_PLAYLISTS_PATH, "utf8")
+          const nextPlaylists = replaceExportedArray(
+            currentPlaylists,
+            "SEED_PLAYLISTS",
+            renderSeedPlaylistsArray(catalog.playlists),
+          )
+          fs.writeFileSync(SEED_PLAYLISTS_PATH, nextPlaylists)
+          published = catalog
 
           res.statusCode = 200
           res.setHeader("Content-Type", JSON_TYPE)
-          res.end(JSON.stringify({ ok: true, count: seeds.length, wroteFile: true }))
+          res.end(
+            JSON.stringify({
+              ok: true,
+              count: catalog.tracks.length,
+              playlistCount: catalog.playlists.length,
+              wroteFile: true,
+            }),
+          )
         } catch (err) {
           console.error("[seed-dev-api]", err)
           res.statusCode = 500
           res.setHeader("Content-Type", JSON_TYPE)
-          res.end(JSON.stringify({ error: "Could not write seedTracks.ts" }))
+          res.end(JSON.stringify({ error: "Could not write seed files" }))
         }
       })
     },

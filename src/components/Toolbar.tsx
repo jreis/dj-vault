@@ -27,6 +27,7 @@ function resolveSetTracks(s: {
 
 export function Toolbar() {
   const tracks = useVaultStore((s) => s.tracks)
+  const playlists = useVaultStore((s) => s.playlists)
   const guestTracks = useVaultStore((s) => s.guestTracks)
   const guestSetName = useVaultStore((s) => s.guestSetName)
   const queue = useVaultStore((s) => s.queue)
@@ -167,7 +168,7 @@ export function Toolbar() {
     if (tracks.length === 0) return
     setSeedBusy(true)
     setSeedError(null)
-    const result = await publishSeeds(tracks, seedPassword)
+    const result = await publishSeeds(tracks, playlists, seedPassword)
     if (!result.ok) {
       setSeedBusy(false)
       setSeedError(result.error)
@@ -178,10 +179,14 @@ export function Toolbar() {
     applyPublishedSeeds(published)
     setSeedBusy(false)
     setSeedDialogOpen(false)
+    const playlistBit =
+      result.playlistCount === 0
+        ? " (no starter playlists)"
+        : ` and ${result.playlistCount} playlist${result.playlistCount === 1 ? "" : "s"}`
     showToast(
       result.wroteFile
-        ? `Saved ${result.count} track${result.count === 1 ? "" : "s"} as seed (wrote seedTracks.ts). Reset seed to use them in this browser.`
-        : `Published ${result.count} track${result.count === 1 ? "" : "s"} as the live seed catalog.`,
+        ? `Saved ${result.count} track${result.count === 1 ? "" : "s"}${playlistBit} as seed (wrote seed files). Reset seed to use them in this browser.`
+        : `Published ${result.count} track${result.count === 1 ? "" : "s"}${playlistBit} as the live seed catalog.`,
       "success",
     )
   }
@@ -397,13 +402,18 @@ export function Toolbar() {
               className="text-sm font-semibold text-vault-text"
             >
               Publish {tracks.length} track
-              {tracks.length === 1 ? "" : "s"} as seed?
+              {tracks.length === 1 ? "" : "s"}
+              {playlists.length === 0
+                ? ""
+                : ` and ${playlists.length} playlist${playlists.length === 1 ? "" : "s"}`}{" "}
+              as seed?
             </h2>
             <p className="mt-2 text-xs leading-relaxed text-vault-muted">
-              New visitors and Reset seed will use this library. The curator
-              password is checked on the server, never baked into the page.
+              New visitors and Reset seed will use this library and these
+              playlists. The curator password is checked on the server, never
+              baked into the page.
               {import.meta.env.DEV
-                ? " Locally this also writes src/data/seedTracks.ts; leave the password blank unless you set SEED_ADMIN_SECRET."
+                ? " Locally this also writes src/data/seedTracks.ts and src/data/seedPlaylists.ts; leave the password blank unless you set SEED_ADMIN_SECRET."
                 : ""}
             </p>
             <label className="mt-3 block text-xs text-vault-muted">

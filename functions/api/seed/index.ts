@@ -1,20 +1,21 @@
 /**
  * Published seed catalog.
  *
- * GET  /api/seed  → { tracks: Track[] | null }
- * POST /api/seed  body: { password: string, tracks: Track[] }
- *               → { ok: true, count: number }
+ * GET  /api/seed  → { tracks: Track[] | null, playlists: Playlist[] | null }
+ * POST /api/seed  body: { password: string, tracks: Track[], playlists?: Playlist[] }
+ *               → { ok: true, count: number, playlistCount: number }
  *
  * POST requires env SEED_ADMIN_SECRET (Encrypt in the Pages dashboard).
  * Catalog is stored in the SHARES KV namespace.
  */
 
 import {
-  getPublishedSeeds,
+  catalogToSeedRecords,
+  getPublishedCatalog,
+  parseSeedPlaylistPayload,
   parseSeedTrackPayload,
   passwordMatches,
-  putPublishedSeeds,
-  tracksToSeedRecords,
+  putPublishedCatalog,
   type SeedEnv,
 } from "../../_lib/seedCatalog.ts"
 
@@ -30,14 +31,20 @@ type PagesContext = {
 }
 
 export async function onRequestGet(context: PagesContext): Promise<Response> {
-  const tracks = await getPublishedSeeds(context.env)
-  return new Response(JSON.stringify({ tracks }), {
-    status: 200,
-    headers: {
-      ...JSON_HEADERS,
-      "Cache-Control": "no-store",
+  const catalog = await getPublishedCatalog(context.env)
+  return new Response(
+    JSON.stringify({
+      tracks: catalog?.tracks ?? null,
+      playlists: catalog?.playlists ?? null,
+    }),
+    {
+      status: 200,
+      headers: {
+        ...JSON_HEADERS,
+        "Cache-Control": "no-store",
+      },
     },
-  })
+  )
 }
 
 export async function onRequestPost(context: PagesContext): Promise<Response> {
@@ -85,18 +92,31 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     )
   }
 
-  const existing = await getPublishedSeeds(context.env)
+  const existing = await getPublishedCatalog(context.env)
   const reservedMax = existing
     ? Math.max(
         0,
-        ...existing.map((t) => {
+        ...existing.tracks.map((t) => {
           const m = /^seed-(\d+)$/.exec(t.id)
           return m ? Number(m[1]) : 0
         }),
       )
     : 0
-  const seeds = tracksToSeedRecords(parsed, { reservedMax })
-  const saved = await putPublishedSeeds(context.env, seeds)
+
+  const hasPlaylists =
+    body && typeof body === "object" && "playlists" in body
+  const parsedPlaylists = hasPlaylists
+    ? parseSeedPlaylistPayload((body as { playlists: unknown }).playlists)
+    : (existing?.playlists ?? [])
+  if (parsedPlaylists === null) {
+    return new Response(
+      JSON.stringify({ error: "Playlists must be an array of valid playlists." }),
+      { status: 400, headers: JSON_HEADERS },
+    )
+  }
+
+  const catalog = catalogToSeedRecords(parsed, parsedPlaylists, { reservedMax })
+  const saved = await putPublishedCatalog(context.env, catalog)
   if (!saved.ok) {
     return new Response(JSON.stringify({ error: saved.error }), {
       status: saved.status,
@@ -104,8 +124,15 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     })
   }
 
-  return new Response(JSON.stringify({ ok: true, count: seeds.length }), {
-    status: 200,
-    headers: JSON_HEADERS,
-  })
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      count: catalog.tracks.length,
+      playlistCount: catalog.playlists.length,
+    }),
+    {
+      status: 200,
+      headers: JSON_HEADERS,
+    },
+  )
 }

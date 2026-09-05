@@ -7,6 +7,8 @@ import {
   SEED_TRACKS,
 } from "../data/seedTracks"
 import { SEED_PLAYLISTS } from "../data/seedPlaylists"
+import { replaceCuratedPlaylists } from "../../functions/_lib/seedCatalog"
+import type { PublishedCatalog } from "../lib/seedApi"
 import { estimateBPM } from "../lib/bpm"
 import { resumeActiveYtPlayer } from "../lib/youtubeApi"
 import type { Filters, Genre, Playlist, Track } from "../types"
@@ -102,6 +104,11 @@ interface VaultState {
    */
   publishedSeeds: Track[] | null
   /**
+   * Live published starter playlists from GET /api/seed.
+   * Transient — not persisted. Null means use bundled SEED_PLAYLISTS.
+   */
+  publishedPlaylists: Playlist[] | null
+  /**
    * True when this browser had no persisted library yet, so the first
    * published catalog should replace the bundled default instead of merging.
    */
@@ -128,7 +135,7 @@ interface VaultState {
   /** Empty the library and stop playback. Persists; seeds are not re-injected. */
   clearLibrary: () => void
   /** Adopt a password-published catalog (live site) or bundled seeds. */
-  applyPublishedSeeds: (seeds: Track[] | null) => void
+  applyPublishedSeeds: (catalog: PublishedCatalog | null) => void
   importTracks: (tracks: Track[], mode: "merge" | "replace") => void
 
   // guest / shared set
@@ -241,6 +248,7 @@ export const useVaultStore = create<VaultState>()(
       youtubeSearchQuery: null,
       youtubeSearchSeq: 0,
       publishedSeeds: null,
+      publishedPlaylists: null,
       awaitingPublishedSeeds: false,
 
       resolveTrack: (id) => {
@@ -321,9 +329,10 @@ export const useVaultStore = create<VaultState>()(
 
       resetToSeed: () => {
         const seeds = get().publishedSeeds ?? SEED_TRACKS
+        const playlists = get().publishedPlaylists ?? SEED_PLAYLISTS
         set({
           tracks: seeds,
-          playlists: [],
+          playlists,
           guestTracks: [],
           guestSetName: null,
           previewTrack: null,
@@ -353,34 +362,52 @@ export const useVaultStore = create<VaultState>()(
         }))
       },
 
-      applyPublishedSeeds: (seeds) => {
-        if (!seeds || seeds.length === 0) {
+      applyPublishedSeeds: (catalog) => {
+        if (!catalog || catalog.tracks.length === 0) {
           set({ awaitingPublishedSeeds: false })
           return
         }
-        const catalog = ensureTrackBPMs(seeds)
+        const seedTracks = ensureTrackBPMs(catalog.tracks)
+        const seedTrackIds = new Set(seedTracks.map((t) => t.id))
+        const publishedPlaylists =
+          catalog.playlists == null
+            ? null
+            : prunePlaylistIds(
+                catalog.playlists.map((p) => ({ ...p, curated: true })),
+                seedTrackIds,
+              ).filter((p) => p.trackIds.length > 0)
         set((s) => {
+          const playlists = replaceCuratedPlaylists(
+            s.playlists,
+            publishedPlaylists,
+          )
           if (s.awaitingPublishedSeeds) {
             return {
-              publishedSeeds: catalog,
+              publishedSeeds: seedTracks,
+              publishedPlaylists: publishedPlaylists ?? SEED_PLAYLISTS,
               awaitingPublishedSeeds: false,
-              tracks: catalog,
-              selectedId: catalog[0]?.id ?? s.selectedId,
+              tracks: seedTracks,
+              playlists: publishedPlaylists ?? SEED_PLAYLISTS,
+              selectedId: seedTracks[0]?.id ?? s.selectedId,
             }
           }
           // An intentionally empty vault stays empty; Reset seed still uses catalog.
           if (s.tracks.length === 0) {
             return {
-              publishedSeeds: catalog,
+              publishedSeeds: seedTracks,
+              publishedPlaylists: publishedPlaylists ?? s.publishedPlaylists,
               awaitingPublishedSeeds: false,
+              playlists,
             }
           }
           return {
-            publishedSeeds: catalog,
+            publishedSeeds: seedTracks,
+            publishedPlaylists: publishedPlaylists ?? s.publishedPlaylists,
             awaitingPublishedSeeds: false,
             tracks: ensureTrackBPMs(
-              ensureSeedTracks(repairDeadYoutubeIds(s.tracks), catalog),
+              ensureSeedTracks(repairDeadYoutubeIds(s.tracks), seedTracks),
             ),
+            playlists,
           }
         })
       },
@@ -1029,6 +1056,7 @@ export const useVaultStore = create<VaultState>()(
           guestSetName: null,
           previewTrack: null,
           publishedSeeds: null,
+          publishedPlaylists: null,
           awaitingPublishedSeeds: !tracksPersisted,
           nowPlayingId,
           queue,
