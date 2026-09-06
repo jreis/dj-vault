@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Header } from "./components/Header"
 import { FilterBar } from "./components/FilterBar"
+import { ArtistExperiencePanel } from "./components/ArtistExperience"
 import { YoutubeSearchPanel } from "./components/YoutubeSearchPanel"
 import { TrackTable } from "./components/TrackTable"
 import { Player } from "./components/Player"
@@ -16,6 +17,10 @@ import { WelcomeBanner } from "./components/WelcomeBanner"
 import { ShortcutsModal } from "./components/ShortcutsModal"
 import { FeatureTour } from "./components/FeatureTour"
 import { Toast } from "./components/Toast"
+import {
+  applyArtistTheme,
+  resolveArtistExperience,
+} from "./lib/artistExperience"
 import { filterAndSortTracks } from "./lib/filterTracks"
 import { fetchShortShare } from "./lib/shareApi"
 import { fetchPublishedSeeds } from "./lib/seedApi"
@@ -117,6 +122,15 @@ export default function App() {
     [tracks, filters],
   )
   const visibleIds = useMemo(() => visible.map((t) => t.id), [visible])
+  const artistExperience = useMemo(
+    () => resolveArtistExperience(filters.query),
+    [filters.query],
+  )
+
+  useEffect(() => {
+    applyArtistTheme(artistExperience?.theme ?? null, document.documentElement)
+    return () => applyArtistTheme(null, document.documentElement)
+  }, [artistExperience])
 
   useKeyboardNav(visibleIds, {
     onOpenShortcuts: openShortcuts,
@@ -146,17 +160,19 @@ export default function App() {
           <Toolbar />
         </div>
 
-        <div className="mb-4">
-          <DiscoveryPanel />
-        </div>
-
-        <div className="mb-4">
-          <RadioMode />
-        </div>
-
-        <div className="mb-4">
-          <MusicProfile />
-        </div>
+        {!artistExperience && (
+          <>
+            <div className="mb-4">
+              <DiscoveryPanel />
+            </div>
+            <div className="mb-4">
+              <RadioMode />
+            </div>
+            <div className="mb-4">
+              <MusicProfile />
+            </div>
+          </>
+        )}
 
         {showAddForm && (
           <div className="mb-5 animate-fade-in">
@@ -167,6 +183,10 @@ export default function App() {
         <div className="mb-4">
           <FilterBar />
         </div>
+
+        {artistExperience && (
+          <ArtistExperiencePanel experience={artistExperience} />
+        )}
 
         <YoutubeSearchPanel />
 

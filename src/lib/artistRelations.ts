@@ -13,6 +13,12 @@ export interface ArtistInfo {
   vibes: string[]
   /** Similar/related artists */
   similarArtists: string[]
+  /** One-line scene description for the artist destination */
+  tagline?: string
+  /** Artists they draw from — lineage, not just neighbors */
+  influences?: string[]
+  /** Contemporaries / "if you like them, try" */
+  kin?: string[]
 }
 
 /**
@@ -122,6 +128,7 @@ export const ARTIST_DATABASE: Record<string, ArtistInfo> = {
     subgenres: ["Thrash Metal", "Heavy Metal"],
     peakEra: ["80s", "90s"],
     vibes: ["aggressive", "technical", "epic", "powerful"],
+    tagline: "Thrash that built the arena",
     similarArtists: [
       "Megadeth",
       "Slayer",
@@ -130,6 +137,8 @@ export const ARTIST_DATABASE: Record<string, ArtistInfo> = {
       "Exodus",
       "Pantera",
     ],
+    influences: ["Black Sabbath", "Diamond Head", "Iron Maiden", "Motörhead"],
+    kin: ["Megadeth", "Slayer", "Anthrax"],
   },
   "Black Sabbath": {
     name: "Black Sabbath",
@@ -241,6 +250,7 @@ export const ARTIST_DATABASE: Record<string, ArtistInfo> = {
     subgenres: ["Occult Rock", "Heavy Metal", "Progressive Rock"],
     peakEra: ["10s", "20s"],
     vibes: ["theatrical", "melodic", "occult", "retro"],
+    tagline: "Occult rock in papal dress",
     similarArtists: [
       "Blue Öyster Cult",
       "Mercyful Fate",
@@ -248,6 +258,54 @@ export const ARTIST_DATABASE: Record<string, ArtistInfo> = {
       "Volbeat",
       "Avatar",
     ],
+    influences: [
+      "Blue Öyster Cult",
+      "Mercyful Fate",
+      "Candlemass",
+      "Black Sabbath",
+      "ABBA",
+    ],
+    kin: ["Volbeat", "Avatar"],
+  },
+  "Blue Öyster Cult": {
+    name: "Blue Öyster Cult",
+    subgenres: ["Hard Rock", "Occult Rock"],
+    peakEra: ["70s", "80s"],
+    vibes: ["mysterious", "riffy", "sci-fi", "theatrical"],
+    tagline: "(Don't fear) the vault",
+    similarArtists: ["Ghost", "Rush", "Uriah Heep", "Rainbow"],
+    influences: ["Black Sabbath", "The Doors"],
+    kin: ["Ghost", "Rush"],
+  },
+  "Mercyful Fate": {
+    name: "Mercyful Fate",
+    subgenres: ["Heavy Metal", "Occult Metal"],
+    peakEra: ["80s"],
+    vibes: ["theatrical", "occult", "falsetto", "dark"],
+    tagline: "Danish occult metal",
+    similarArtists: ["King Diamond", "Ghost", "Satan"],
+    influences: ["Black Sabbath", "Deep Purple"],
+    kin: ["King Diamond", "Ghost"],
+  },
+  "Candlemass": {
+    name: "Candlemass",
+    subgenres: ["Doom Metal", "Epic Doom"],
+    peakEra: ["80s", "90s"],
+    vibes: ["epic", "slow", "cathedral", "heavy"],
+    tagline: "Epic doom from Stockholm",
+    similarArtists: ["Ghost", "Saint Vitus", "Trouble"],
+    influences: ["Black Sabbath"],
+    kin: ["Ghost", "Saint Vitus"],
+  },
+  "ABBA": {
+    name: "ABBA",
+    subgenres: ["Pop", "Disco"],
+    peakEra: ["70s", "80s"],
+    vibes: ["melodic", "theatrical", "euphoric", "hooky"],
+    tagline: "The secret in the makeup",
+    similarArtists: [],
+    influences: ["The Beatles", "Phil Spector"],
+    kin: ["Ghost"],
   },
 
   // Classic Rock

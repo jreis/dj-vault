@@ -1,5 +1,6 @@
 import type { Era, Genre, Track } from "../types.ts"
 import { getArtistSimilarity, getSimilarArtists } from "./artistRelations.ts"
+import { isSameSong, songIdentity } from "./youtubeDiscover.ts"
 
 export interface SimilarMatch {
   track: Track
@@ -69,6 +70,8 @@ function scorePair(seed: Track, candidate: Track): SimilarMatch | null {
   if (seed.id === candidate.id) return null
   // Exact same YouTube upload is not "similar" — it's a dupe
   if (seed.youtubeId === candidate.youtubeId) return null
+  // Same song under a different upload (lyric video, remaster, live id)
+  if (isSameSong(seed, candidate)) return null
 
   let score = 0
   const reasons: string[] = []
@@ -186,10 +189,15 @@ export function findSimilarTracks(
   library: Track[],
   limit = 8,
 ): SimilarMatch[] {
+  const seen = new Set<string>([songIdentity(seed.title, seed.artist)])
   const matches: SimilarMatch[] = []
   for (const t of library) {
+    const key = songIdentity(t.title, t.artist)
+    if (seen.has(key)) continue
     const m = scorePair(seed, t)
-    if (m) matches.push(m)
+    if (!m) continue
+    seen.add(key)
+    matches.push(m)
   }
   matches.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score

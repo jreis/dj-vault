@@ -1,8 +1,13 @@
 import type { Filters, Genre, Track } from "../types"
+import { matchKnownArtist } from "./artistExperience.ts"
 
 export function matchesQuery(track: Track, query: string): boolean {
   const q = query.trim().toLowerCase()
   if (!q) return true
+  const destination = matchKnownArtist(query)
+  if (destination) {
+    return track.artist.toLowerCase() === destination.name.toLowerCase()
+  }
   return (
     track.title.toLowerCase().includes(q) ||
     track.artist.toLowerCase().includes(q) ||

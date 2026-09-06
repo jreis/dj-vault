@@ -61,6 +61,37 @@ body::before {
   z-index: 0;
 }
 
+html[data-artist-theme] body::before {
+  opacity: 0.055;
+}
+
+html[data-artist-theme="ghost"] body::before {
+  opacity: 0.09;
+  background:
+    radial-gradient(
+      ellipse at 18% -10%,
+      color-mix(in srgb, var(--color-vault-amber) 22%, transparent),
+      transparent 52%
+    ),
+    radial-gradient(
+      ellipse at 88% 110%,
+      color-mix(in srgb, #14532d 40%, transparent),
+      transparent 48%
+    ),
+    repeating-radial-gradient(
+      circle at 50% 50%,
+      transparent 0,
+      transparent 2px,
+      currentColor 2px,
+      currentColor 3px
+    );
+}
+
+.vault-logo-glow {
+  box-shadow: 0 0 20px
+    color-mix(in srgb, var(--color-vault-amber) 28%, transparent);
+}
+
 #root {
   position: relative;
   z-index: 1;

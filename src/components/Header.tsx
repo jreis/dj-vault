@@ -1,3 +1,4 @@
+import { resolveArtistExperience } from "../lib/artistExperience"
 import { useVaultStore } from "../store/useVaultStore"
 
 interface HeaderProps {
@@ -19,6 +20,8 @@ export function Header({
   const toggleSetMode = useVaultStore((s) => s.toggleSetMode)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const queue = useVaultStore((s) => s.queue)
+  const searchQuery = useVaultStore((s) => s.filters.query)
+  const experience = resolveArtistExperience(searchQuery)
 
   const canOpenSet =
     Boolean(nowPlayingId) || queue.length > 0
@@ -28,17 +31,23 @@ export function Header({
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
         <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-vault-amber/40 bg-vault-elevated shadow-[0_0_20px_rgba(245,158,11,0.15)] sm:h-10 sm:w-10"
+            className="vault-logo-glow flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-vault-amber/40 bg-vault-elevated text-vault-amber sm:h-10 sm:w-10"
             aria-hidden
           >
             <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
-              <circle cx="16" cy="16" r="11" stroke="#f59e0b" strokeWidth="2" />
-              <circle cx="16" cy="16" r="3" fill="#f59e0b" />
+              <circle
+                cx="16"
+                cy="16"
+                r="11"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <circle cx="16" cy="16" r="3" fill="currentColor" />
               <circle
                 cx="16"
                 cy="16"
                 r="7"
-                stroke="#f59e0b"
+                stroke="currentColor"
                 strokeWidth="1"
                 opacity="0.4"
               />
@@ -46,13 +55,26 @@ export function Header({
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-base font-semibold tracking-tight text-vault-text sm:text-xl">
-              DJ <span className="text-vault-amber">Vault</span>
+              {experience ? (
+                <span className="text-vault-amber">{experience.name}</span>
+              ) : (
+                <>
+                  DJ <span className="text-vault-amber">Vault</span>
+                </>
+              )}
             </h1>
             <p className="truncate text-[11px] text-vault-muted sm:text-xs">
-              <span className="hidden sm:inline">
-                Curate sets like shipping systems
-                <span className="mx-1.5 text-vault-border">·</span>
-              </span>
+              {experience ? (
+                <>
+                  {experience.tagline}
+                  <span className="mx-1.5 text-vault-border">·</span>
+                </>
+              ) : (
+                <span className="hidden sm:inline">
+                  Curate sets like shipping systems
+                  <span className="mx-1.5 text-vault-border">·</span>
+                </span>
+              )}
               {visibleCount === trackCount
                 ? `${trackCount} tracks`
                 : `${visibleCount} of ${trackCount}`}

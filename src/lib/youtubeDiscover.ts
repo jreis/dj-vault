@@ -1,4 +1,4 @@
-import type { Track } from "../types"
+import type { Track } from "../types.ts"
 
 export interface DiscoverVideo {
   youtubeId: string
@@ -109,6 +109,56 @@ export function cleanVideoTitle(raw: string): string {
     .trim()
 }
 
+function normSongText(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/^the\s+/, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+}
+
+/** Artist + cleaned title so lyric videos and remasters match the vault copy. */
+export function songIdentity(title: string, artist: string): string {
+  return `${normSongText(artist)}\t${normSongText(cleanVideoTitle(title))}`
+}
+
+export function isSameSong(
+  a: { title: string; artist: string },
+  b: { title: string; artist: string },
+): boolean {
+  return songIdentity(a.title, a.artist) === songIdentity(b.title, b.artist)
+}
+
+/**
+ * Drop YouTube hits that are the seed, already in the library, or repeats of
+ * each other — even when the video id differs (lyric video, remaster, VEVO).
+ */
+export function filterNewDiscoveries(
+  items: DiscoverVideo[],
+  seed: { title: string; artist: string; youtubeId: string },
+  library: Array<{ title: string; artist: string; youtubeId: string }>,
+): DiscoverVideo[] {
+  const taken = new Set<string>([
+    seed.youtubeId,
+    songIdentity(seed.title, seed.artist),
+  ])
+  for (const t of library) {
+    if (t.youtubeId) taken.add(t.youtubeId)
+    taken.add(songIdentity(t.title, t.artist))
+  }
+  const kept: DiscoverVideo[] = []
+  for (const video of items) {
+    if (taken.has(video.youtubeId)) continue
+    const meta = guessTitleArtist(video.title, video.channelTitle)
+    const key = songIdentity(meta.title, meta.artist)
+    if (taken.has(key)) continue
+    taken.add(video.youtubeId)
+    taken.add(key)
+    kept.push(video)
+  }
+  return kept
+}
+
 /**
  * Guess title + artist from a YouTube video title and channel name.
  * Handles "Artist - Song", "Song by Artist", otherwise uses channel as artist.
@@ -200,7 +250,7 @@ export async function fetchSimilarVideos(
   }
 
   return {
-    items: data.items ?? [],
+    items: filterNewDiscoveries(data.items ?? [], seed, library),
     query: data.query ?? "",
   }
 }
