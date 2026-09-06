@@ -11,6 +11,7 @@ import { replaceCuratedPlaylists } from "../../functions/_lib/seedCatalog"
 import type { PublishedCatalog } from "../lib/seedApi"
 import { estimateBPM } from "../lib/bpm"
 import { resumeActiveYtPlayer } from "../lib/youtubeApi"
+import { songIdentity, uniqueSongs } from "../lib/youtubeDiscover.ts"
 import type { Filters, Genre, Playlist, Track } from "../types"
 
 /** YouTube discovery result ready to become a guest (or existing) vault track. */
@@ -741,25 +742,37 @@ export const useVaultStore = create<VaultState>()(
         if (!trimmed) return null
         const s = get()
         const byYt = new Map(s.tracks.map((t) => [t.youtubeId, t]))
+        const bySong = new Map(
+          s.tracks.map((t) => [songIdentity(t.title, t.artist), t]),
+        )
         const ids: string[] = []
         const toAdd: Track[] = []
+        const seen = new Set<string>()
 
-        for (const input of discoveries) {
-          const existing = byYt.get(input.youtubeId)
+        for (const input of uniqueSongs(discoveries)) {
+          const key = songIdentity(input.title, input.artist)
+          if (seen.has(key)) continue
+          const existing = byYt.get(input.youtubeId) ?? bySong.get(key)
           if (existing) {
+            seen.add(key)
             if (!ids.includes(existing.id)) ids.push(existing.id)
             continue
           }
           const track = trackFromInput(input)
           toAdd.push(track)
           byYt.set(track.youtubeId, track)
+          bySong.set(key, track)
+          seen.add(key)
           ids.push(track.id)
         }
 
         for (const id of extraVaultIds) {
-          if (s.tracks.some((t) => t.id === id) && !ids.includes(id)) {
-            ids.push(id)
-          }
+          const extra = s.tracks.find((t) => t.id === id)
+          if (!extra || ids.includes(id)) continue
+          const key = songIdentity(extra.title, extra.artist)
+          if (seen.has(key)) continue
+          seen.add(key)
+          ids.push(id)
         }
 
         if (ids.length === 0) {
@@ -809,15 +822,26 @@ export const useVaultStore = create<VaultState>()(
         const resolved: string[] = []
         const newGuests: Track[] = []
 
-        for (const input of inputs) {
-          const existing = byYt.get(input.youtubeId)
+        const bySong = new Map<string, Track>()
+        for (const t of byYt.values()) {
+          bySong.set(songIdentity(t.title, t.artist), t)
+        }
+        const seen = new Set<string>()
+
+        for (const input of uniqueSongs(inputs)) {
+          const key = songIdentity(input.title, input.artist)
+          if (seen.has(key)) continue
+          const existing = byYt.get(input.youtubeId) ?? bySong.get(key)
           if (existing) {
+            seen.add(key)
             resolved.push(existing.id)
             continue
           }
           const track = trackFromInput(input, uid("g"))
           newGuests.push(track)
           byYt.set(track.youtubeId, track)
+          bySong.set(key, track)
+          seen.add(key)
           resolved.push(track.id)
         }
 

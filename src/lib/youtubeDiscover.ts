@@ -129,6 +129,45 @@ export function isSameSong(
   return songIdentity(a.title, a.artist) === songIdentity(b.title, b.artist)
 }
 
+function takeUniqueVideos(
+  items: DiscoverVideo[],
+  taken: Set<string>,
+): DiscoverVideo[] {
+  const kept: DiscoverVideo[] = []
+  for (const video of items) {
+    if (taken.has(video.youtubeId)) continue
+    const meta = guessTitleArtist(video.title, video.channelTitle)
+    const key = songIdentity(meta.title, meta.artist)
+    if (taken.has(key)) continue
+    taken.add(video.youtubeId)
+    taken.add(key)
+    kept.push(video)
+  }
+  return kept
+}
+
+/** One row per song in a YouTube search (Walk official + lyrics + audio → Walk). */
+export function uniqueDiscoverVideos(items: DiscoverVideo[]): DiscoverVideo[] {
+  return takeUniqueVideos(items, new Set())
+}
+
+/** Same-song collapse once titles are already parsed (best-of ingest). */
+export function uniqueSongs<
+  T extends { title: string; artist: string; youtubeId: string },
+>(items: T[]): T[] {
+  const seen = new Set<string>()
+  const kept: T[] = []
+  for (const item of items) {
+    if (seen.has(item.youtubeId)) continue
+    const key = songIdentity(item.title, item.artist)
+    if (seen.has(key)) continue
+    seen.add(item.youtubeId)
+    seen.add(key)
+    kept.push(item)
+  }
+  return kept
+}
+
 /**
  * Drop YouTube hits that are the seed, already in the library, or repeats of
  * each other — even when the video id differs (lyric video, remaster, VEVO).
@@ -146,17 +185,7 @@ export function filterNewDiscoveries(
     if (t.youtubeId) taken.add(t.youtubeId)
     taken.add(songIdentity(t.title, t.artist))
   }
-  const kept: DiscoverVideo[] = []
-  for (const video of items) {
-    if (taken.has(video.youtubeId)) continue
-    const meta = guessTitleArtist(video.title, video.channelTitle)
-    const key = songIdentity(meta.title, meta.artist)
-    if (taken.has(key)) continue
-    taken.add(video.youtubeId)
-    taken.add(key)
-    kept.push(video)
-  }
-  return kept
+  return takeUniqueVideos(items, taken)
 }
 
 /**
@@ -301,7 +330,7 @@ export async function searchYouTubeVideos(
   }
 
   return {
-    items: data.items ?? [],
+    items: uniqueDiscoverVideos(data.items ?? []),
     query: data.query ?? "",
   }
 }

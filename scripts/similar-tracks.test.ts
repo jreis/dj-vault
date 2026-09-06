@@ -2,7 +2,11 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import type { Track } from "../src/types.ts"
 import { findSimilarTracks } from "../src/lib/similarTracks.ts"
-import { filterNewDiscoveries } from "../src/lib/youtubeDiscover.ts"
+import {
+  filterNewDiscoveries,
+  uniqueDiscoverVideos,
+  uniqueSongs,
+} from "../src/lib/youtubeDiscover.ts"
 
 function track(
   over: Partial<Track> & Pick<Track, "id" | "title" | "artist" | "youtubeId">,
@@ -160,6 +164,55 @@ describe("filterNewDiscoveries", () => {
     assert.deepEqual(
       kept.map((v) => v.youtubeId),
       ["hhhhhhhhhhh"],
+    )
+  })
+})
+
+describe("uniqueDiscoverVideos", () => {
+  it("keeps one Walk from a Pantera best-of search", () => {
+    const kept = uniqueDiscoverVideos([
+      {
+        youtubeId: "walkofficial",
+        title: "Pantera - Walk (Official Music Video)",
+        channelTitle: "PanteraVEVO",
+        thumbnailUrl: "",
+      },
+      {
+        youtubeId: "walkaudioxx",
+        title: "Pantera - Walk (Official Audio)",
+        channelTitle: "PanteraVEVO",
+        thumbnailUrl: "",
+      },
+      {
+        youtubeId: "walklyricsx",
+        title: "Walk (Lyrics)",
+        channelTitle: "Pantera",
+        thumbnailUrl: "",
+      },
+      {
+        youtubeId: "cowboysfrom",
+        title: "Pantera - Cowboys From Hell (Official Video)",
+        channelTitle: "PanteraVEVO",
+        thumbnailUrl: "",
+      },
+    ])
+    assert.deepEqual(
+      kept.map((v) => v.youtubeId),
+      ["walkofficial", "cowboysfrom"],
+    )
+  })
+})
+
+describe("uniqueSongs", () => {
+  it("collapses best-of discoveries that are the same song", () => {
+    const kept = uniqueSongs([
+      { title: "Walk", artist: "Pantera", youtubeId: "walkofficial" },
+      { title: "Walk (Official Audio)", artist: "Pantera", youtubeId: "walkaudioxx" },
+      { title: "Cowboys From Hell", artist: "Pantera", youtubeId: "cowboysfrom" },
+    ])
+    assert.deepEqual(
+      kept.map((s) => s.youtubeId),
+      ["walkofficial", "cowboysfrom"],
     )
   })
 })
