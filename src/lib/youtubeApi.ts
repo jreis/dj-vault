@@ -50,6 +50,7 @@ export interface YtPlayer {
   loadVideoById: (id: string) => void
   cueVideoById: (id: string) => void
   playVideo: () => void
+  pauseVideo: () => void
   stopVideo: () => void
   getPlayerState: () => number
 }

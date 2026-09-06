@@ -6,10 +6,18 @@ import {
 import { youtubeThumbUrl, youtubeWatchUrl } from "../lib/youtube"
 import {
   createYouTubePlayer,
+  resumeActiveYtPlayer,
   setActiveYtPlayer,
   youtubeErrorMessage,
   type YtPlayer,
 } from "../lib/youtubeApi"
+import {
+  bindMediaSession,
+  syncScreenWakeLock,
+  type MediaSessionLike,
+  type WakeLockLike,
+  type WakeLockSentinelLike,
+} from "../lib/playbackSession"
 import type { Track } from "../types"
 import { AudioVisualizer } from "./AudioVisualizer"
 import { AddToPlaylistMenu } from "./AddToPlaylistMenu"
@@ -164,6 +172,66 @@ export function Player() {
       playerRef.current = null
     }
   }, [trackId, videoId])
+
+  useEffect(() => {
+    const session = navigator.mediaSession as MediaSessionLike | undefined
+    bindMediaSession(
+      session ?? null,
+      current
+        ? {
+            title: current.title,
+            artist: current.artist,
+            artworkUrl: youtubeThumbUrl(current.youtubeId),
+          }
+        : null,
+      {
+        onPlay: () => {
+          resumeActiveYtPlayer()
+        },
+        onPause: () => {
+          try {
+            playerRef.current?.pauseVideo()
+          } catch {
+            // iframe may already be gone
+          }
+        },
+        onNext: () => playNext(),
+        onPrev: () => playPrev(),
+      },
+    )
+    return () => bindMediaSession(session ?? null, null, {})
+  }, [current, playNext, playPrev])
+
+  useEffect(() => {
+    const api = (navigator as Navigator & { wakeLock?: WakeLockLike }).wakeLock
+    let sentinel: WakeLockSentinelLike | null = null
+    let cancelled = false
+
+    const sync = async () => {
+      const hold = Boolean(trackId) && document.visibilityState === "visible"
+      const next = await syncScreenWakeLock(api, hold, sentinel)
+      if (cancelled) {
+        void next?.release()
+        return
+      }
+      sentinel = next
+    }
+
+    const onVis = () => {
+      void sync()
+      if (document.visibilityState === "visible" && trackId) {
+        resumeActiveYtPlayer()
+      }
+    }
+
+    void sync()
+    document.addEventListener("visibilitychange", onVis)
+    return () => {
+      cancelled = true
+      document.removeEventListener("visibilitychange", onVis)
+      void sentinel?.release()
+    }
+  }, [trackId])
 
   const skipLabel = useMemo(() => {
     if (!unavailable) return null
@@ -597,6 +665,18 @@ export function Player() {
                     ) : (
                       "Auto-advances through the queue when a track ends (or is unavailable)."
                     )}
+                  </p>
+                )}
+                {!unavailable && (
+                  <p
+                    className={
+                      setMode
+                        ? "text-[11px] text-stone-500 sm:hidden"
+                        : "text-[11px] text-vault-muted/80 sm:hidden"
+                    }
+                  >
+                    Leave the screen on to keep the set going. Locking the phone
+                    usually pauses YouTube.
                   </p>
                 )}
               </div>
