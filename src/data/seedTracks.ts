@@ -27,8 +27,8 @@ export function repairDeadYoutubeIds(tracks: Track[]): Track[] {
 }
 
 /**
- * Append any seed tracks missing from a persisted library (by id and youtubeId).
- * Lets new seeds show up without forcing a full vault reset.
+ * Append seed tracks missing from a library (by id and youtubeId).
+ * Used when building a catalog merge, not on localStorage rehydrate.
  */
 export function ensureSeedTracks(
   tracks: Track[],

@@ -26,7 +26,7 @@ Portfolio + DJ Vault by [Jason Reis](https://jasonreis.dev).
 | **Export** | Full library / playlist JSON, or copy a shareable URL |
 | **Share** | Open a link → set plays immediately (guest session); optional import / save as playlist |
 | **Import** | JSON merge/replace; short links via CF KV when configured |
-| **Persistence** | Tracks, scores, playlists, queue, current track → `localStorage` |
+| **Persistence** | Track list, scores, playlists, queue → `localStorage` (`dj-vault-v1`). Saved list wins; seed catalog is only for first visit or Reset seed. |
 | **UX** | Dark/light toggle, mobile card layout, keyboard-first nav |
 
 ## Quick start

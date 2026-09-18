@@ -1,7 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import {
-  ensureSeedTracks,
   ensureTrackBPMs,
   repairDeadYoutubeIds,
   SEED_TRACKS,
@@ -123,8 +122,8 @@ interface VaultState {
    */
   publishedPlaylists: Playlist[] | null
   /**
-   * True when this browser had no persisted library yet, so the first
-   * published catalog should replace the bundled default instead of merging.
+   * True when this browser had no localStorage track list yet, so the
+   * first published catalog becomes the library. A saved list is never replaced.
    */
   awaitingPublishedSeeds: boolean
 
@@ -435,22 +434,12 @@ export const useVaultStore = create<VaultState>()(
               selectedId: highestVotedTrackId(seedTracks) ?? s.selectedId,
             }
           }
-          // An intentionally empty vault stays empty; Reset seed still uses catalog.
-          if (s.tracks.length === 0) {
-            return {
-              publishedSeeds: seedTracks,
-              publishedPlaylists: publishedPlaylists ?? s.publishedPlaylists,
-              awaitingPublishedSeeds: false,
-              playlists,
-            }
-          }
+          // Keep the user's localStorage library. New catalog tracks are
+          // only applied on first visit or via Reset seed.
           return {
             publishedSeeds: seedTracks,
             publishedPlaylists: publishedPlaylists ?? s.publishedPlaylists,
             awaitingPublishedSeeds: false,
-            tracks: ensureTrackBPMs(
-              ensureSeedTracks(repairDeadYoutubeIds(s.tracks), seedTracks),
-            ),
             playlists,
           }
         })
@@ -1165,8 +1154,9 @@ export const useVaultStore = create<VaultState>()(
     {
       name: "dj-vault-v1",
       // Persist library + playlists + queue + UI prefs.
-      // Playback position is not restored — load starts paused on the
-      // highest-voted track. Guest sets, previews, and transient UI omitted.
+      // If localStorage has a track list, that list is the source of truth.
+      // First visit (no saved tracks) uses bundled seed tracks, then saves.
+      // Playback is not restored — load starts paused on the highest-voted track.
       partialize: (s) => ({
         tracks: s.tracks,
         playlists: s.playlists,
@@ -1178,11 +1168,8 @@ export const useVaultStore = create<VaultState>()(
         const p = (persisted ?? {}) as Partial<VaultState>
         const tracksPersisted = Array.isArray(p.tracks)
         const rawTracks = tracksPersisted ? p.tracks! : current.tracks
-        // Empty persisted library is intentional — do not re-inject seeds.
         const tracks = ensureTrackBPMs(
-          rawTracks.length === 0
-            ? rawTracks
-            : ensureSeedTracks(repairDeadYoutubeIds(rawTracks)),
+          tracksPersisted ? repairDeadYoutubeIds(rawTracks) : rawTracks,
         )
 
         const trackIds = new Set(tracks.map((t) => t.id))
