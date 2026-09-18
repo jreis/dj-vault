@@ -142,6 +142,11 @@ interface VaultState {
    * first published catalog becomes the library. A saved list is never replaced.
    */
   awaitingPublishedSeeds: boolean
+  /**
+   * True when GET /api/seed reports SEED_ADMIN_SECRET is set.
+   * Transient — not persisted. Controls Save as seed on the live site.
+   */
+  seedPublishConfigured: boolean
 
   // track ops
   addTrack: (input: DiscoveredTrackInput) => Track
@@ -170,6 +175,7 @@ interface VaultState {
   clearLibrary: () => void
   /** Adopt a password-published catalog (live site) or bundled seeds. */
   applyPublishedSeeds: (catalog: PublishedCatalog | null) => void
+  setSeedPublishConfigured: (configured: boolean) => void
   importTracks: (tracks: Track[], mode: "merge" | "replace") => void
 
   // guest / shared set
@@ -312,6 +318,7 @@ export const useVaultStore = create<VaultState>()(
       publishedSeeds: null,
       publishedPlaylists: null,
       awaitingPublishedSeeds: false,
+      seedPublishConfigured: false,
 
       resolveTrack: (id) => {
         const s = get()
@@ -456,6 +463,9 @@ export const useVaultStore = create<VaultState>()(
           awaitingPublishedSeeds: false,
         }))
       },
+
+      setSeedPublishConfigured: (configured) =>
+        set({ seedPublishConfigured: Boolean(configured) }),
 
       applyPublishedSeeds: (catalog) => {
         if (!catalog || catalog.tracks.length === 0) {
@@ -1271,6 +1281,7 @@ export const useVaultStore = create<VaultState>()(
           publishedSeeds: null,
           publishedPlaylists: null,
           awaitingPublishedSeeds: !tracksPersisted,
+          seedPublishConfigured: false,
           nowPlayingId: null,
           isPlaying: false,
           listenAwardedIds: [],

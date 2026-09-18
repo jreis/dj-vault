@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { onRequestPost } from "../functions/api/seed/index.ts"
+import { onRequestGet, onRequestPost } from "../functions/api/seed/index.ts"
 import {
   getPublishedCatalog,
   passwordMatches,
@@ -64,6 +64,18 @@ describe("shouldShowSeedPublisher", () => {
         sessionUnlocked: false,
       }),
       false,
+    )
+  })
+
+  it("shows Save as seed when SEED_ADMIN_SECRET is configured", () => {
+    assert.equal(
+      shouldShowSeedPublisher({
+        isDev: false,
+        href: "https://jasonreis.dev/djvault/",
+        sessionUnlocked: false,
+        publishConfigured: true,
+      }),
+      true,
     )
   })
 
@@ -159,6 +171,25 @@ describe("curatorFlagInUrl", () => {
       curatorFlagInUrl("https://jasonreis.dev/djvault/#curator"),
       true,
     )
+  })
+})
+
+describe("GET /api/seed", () => {
+  it("reports when the admin secret is configured", async () => {
+    const on = await onRequestGet({
+      request: new Request("https://jasonreis.dev/api/seed"),
+      env: memoryEnv(),
+    })
+    assert.equal(on.status, 200)
+    const onBody = (await on.json()) as { publishConfigured?: boolean }
+    assert.equal(onBody.publishConfigured, true)
+
+    const off = await onRequestGet({
+      request: new Request("https://jasonreis.dev/api/seed"),
+      env: memoryEnv(""),
+    })
+    const offBody = (await off.json()) as { publishConfigured?: boolean }
+    assert.equal(offBody.publishConfigured, false)
   })
 })
 

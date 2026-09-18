@@ -10,21 +10,36 @@ export type PublishSeedResult =
   | { ok: true; count: number; playlistCount: number; wroteFile: boolean }
   | { ok: false; status: number; error: string }
 
-export async function fetchPublishedSeeds(): Promise<PublishedCatalog | null> {
+export type SeedApiSnapshot = {
+  catalog: PublishedCatalog | null
+  /** True when the server has SEED_ADMIN_SECRET and can accept POST /api/seed. */
+  publishConfigured: boolean
+}
+
+export async function fetchPublishedSeeds(): Promise<SeedApiSnapshot> {
   try {
     const res = await fetch("/api/seed", { cache: "no-store" })
-    if (!res.ok) return null
+    if (!res.ok) {
+      return { catalog: null, publishConfigured: false }
+    }
     const data = (await res.json()) as {
       tracks?: unknown
       playlists?: unknown
+      publishConfigured?: unknown
     }
-    if (!Array.isArray(data.tracks) || data.tracks.length === 0) return null
+    const publishConfigured = data.publishConfigured === true
+    if (!Array.isArray(data.tracks) || data.tracks.length === 0) {
+      return { catalog: null, publishConfigured }
+    }
     const playlists = Array.isArray(data.playlists)
       ? (data.playlists as Playlist[])
       : null
-    return { tracks: data.tracks as Track[], playlists }
+    return {
+      catalog: { tracks: data.tracks as Track[], playlists },
+      publishConfigured,
+    }
   } catch {
-    return null
+    return { catalog: null, publishConfigured: false }
   }
 }
 

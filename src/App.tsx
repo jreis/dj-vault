@@ -40,6 +40,9 @@ export default function App() {
   const showAddForm = useVaultStore((s) => s.showAddForm)
   const loadGuestSet = useVaultStore((s) => s.loadGuestSet)
   const applyPublishedSeeds = useVaultStore((s) => s.applyPublishedSeeds)
+  const setSeedPublishConfigured = useVaultStore(
+    (s) => s.setSeedPublishConfigured,
+  )
   const showToast = useToastStore((s) => s.show)
 
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -108,14 +111,15 @@ export default function App() {
   useEffect(() => {
     if (!hydrated) return
     let cancelled = false
-    void fetchPublishedSeeds().then((seeds) => {
+    void fetchPublishedSeeds().then((snap) => {
       if (cancelled) return
-      applyPublishedSeeds(seeds)
+      setSeedPublishConfigured(snap.publishConfigured)
+      applyPublishedSeeds(snap.catalog)
     })
     return () => {
       cancelled = true
     }
-  }, [hydrated, applyPublishedSeeds])
+  }, [hydrated, applyPublishedSeeds, setSeedPublishConfigured])
 
   const visible = useMemo(
     () => filterAndSortTracks(tracks, filters),

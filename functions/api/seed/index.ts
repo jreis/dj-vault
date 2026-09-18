@@ -32,10 +32,12 @@ type PagesContext = {
 
 export async function onRequestGet(context: PagesContext): Promise<Response> {
   const catalog = await getPublishedCatalog(context.env)
+  const publishConfigured = Boolean(context.env.SEED_ADMIN_SECRET?.trim())
   return new Response(
     JSON.stringify({
       tracks: catalog?.tracks ?? null,
       playlists: catalog?.playlists ?? null,
+      publishConfigured,
     }),
     {
       status: 200,

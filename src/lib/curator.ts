@@ -10,8 +10,14 @@ export function shouldShowSeedPublisher(opts: {
   isDev: boolean
   href: string
   sessionUnlocked: boolean
+  /**
+   * True when GET /api/seed reports that SEED_ADMIN_SECRET is set
+   * on the server. The live toolbar then offers Save as seed.
+   */
+  publishConfigured?: boolean
 }): boolean {
   if (opts.isDev) return true
+  if (opts.publishConfigured) return true
   return opts.sessionUnlocked || curatorFlagInUrl(opts.href)
 }
 

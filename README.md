@@ -160,6 +160,18 @@ npm run dev
 
 Without a key, Similar still ranks the vault and shows YouTube search links, and Add track falls back to pasting a link; both surfaces show a clear “not configured” message instead of erroring.
 
+### 2c. Live seed catalog (`SEED_ADMIN_SECRET`)
+
+The starter track list for **new visitors** (and **Reset seed**) is the published catalog in KV (`SHARES` key `seed:catalog`). Bundled `SEED_TRACKS` is the fallback when nothing is published.
+
+1. Pages project → **Settings** → **Environment variables** → add **`SEED_ADMIN_SECRET`** for **Production** (and Preview if you want). Mark as **Encrypt**.
+2. Confirm the **`SHARES`** KV binding (see `wrangler.toml`). Publish writes fail without it.
+3. Redeploy so Functions pick up the secret.
+4. Open `/djvault/` — **Save as seed** appears when the secret is configured.
+5. Edit the vault, click **Save as seed**, enter that secret. New browsers get the new list. This browser keeps its localStorage library until you click **Reset seed**.
+
+The password in the dialog must match `SEED_ADMIN_SECRET`. It is never stored in the page.
+
 **Quota / “don’t go broke” guards** (shared by `/api/youtube/similar` and `/api/youtube/search` — one budget, one breaker):
 
 | Guard | What it does |

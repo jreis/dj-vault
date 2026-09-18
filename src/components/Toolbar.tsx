@@ -37,7 +37,11 @@ export function Toolbar() {
   const clearLibrary = useVaultStore((s) => s.clearLibrary)
   const importTracks = useVaultStore((s) => s.importTracks)
   const applyPublishedSeeds = useVaultStore((s) => s.applyPublishedSeeds)
+  const setSeedPublishConfigured = useVaultStore(
+    (s) => s.setSeedPublishConfigured,
+  )
   const publishedSeeds = useVaultStore((s) => s.publishedSeeds)
+  const seedPublishConfigured = useVaultStore((s) => s.seedPublishConfigured)
   const showToast = useToastStore((s) => s.show)
   const fileRef = useRef<HTMLInputElement>(null)
   const [pendingImport, setPendingImport] = useState<Track[] | null>(null)
@@ -61,9 +65,10 @@ export function Toolbar() {
           window.history,
           window.localStorage,
         ),
+        publishConfigured: seedPublishConfigured,
       }),
     )
-  }, [])
+  }, [seedPublishConfigured])
 
   function exportJson(source: "library" | "queue" | "set") {
     let list = tracks
@@ -193,8 +198,9 @@ export function Toolbar() {
       if (result.status === 401) setSeedPassword("")
       return
     }
-    const published = await fetchPublishedSeeds()
-    applyPublishedSeeds(published)
+    const snap = await fetchPublishedSeeds()
+    setSeedPublishConfigured(snap.publishConfigured)
+    applyPublishedSeeds(snap.catalog)
     setSeedBusy(false)
     setSeedDialogOpen(false)
     const playlistBit =
@@ -430,7 +436,8 @@ export function Toolbar() {
             </h2>
             <p className="mt-2 text-xs leading-relaxed text-vault-muted">
               New visitors and Reset seed will use this library and these
-              playlists. The curator password is checked on the server, never
+              playlists. Enter the same value as SEED_ADMIN_SECRET in
+              Cloudflare Pages. The secret is checked on the server, never
               baked into the page.
               {import.meta.env.DEV
                 ? " Locally this also writes src/data/seedTracks.ts and src/data/seedPlaylists.ts; leave the password blank unless you set SEED_ADMIN_SECRET."

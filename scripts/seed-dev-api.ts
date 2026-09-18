@@ -54,6 +54,7 @@ export function seedDevApi(env: { SEED_ADMIN_SECRET?: string }): Plugin {
             JSON.stringify({
               tracks: published?.tracks ?? null,
               playlists: published?.playlists ?? null,
+              publishConfigured: Boolean(env.SEED_ADMIN_SECRET?.trim()),
             }),
           )
           return
