@@ -13,6 +13,7 @@ import {
   pauseActiveYtPlayer,
   resumeActiveYtPlayer,
 } from "../lib/youtubeApi"
+import { clipKey } from "../lib/youtube"
 import { songIdentity, uniqueSongs } from "../lib/youtubeDiscover.ts"
 import type { Filters, Genre, Playlist, Track } from "../types"
 
@@ -25,6 +26,8 @@ export interface DiscoveredTrackInput {
   era: Track["era"]
   year: number
   notes?: string
+  /** Cue point for a song inside a longer video (seconds). */
+  startSeconds?: number
 }
 
 function uid(prefix = "t"): string {
@@ -41,6 +44,9 @@ function trackFromInput(input: DiscoveredTrackInput, id?: string): Track {
     title,
     artist,
     youtubeId: input.youtubeId,
+    ...(typeof input.startSeconds === "number" && input.startSeconds > 0
+      ? { startSeconds: Math.floor(input.startSeconds) }
+      : {}),
     genre: input.genre,
     era: input.era,
     year: input.year,
@@ -91,6 +97,16 @@ interface VaultState {
    * False on load so a cued track does not autoplay.
    */
   isPlaying: boolean
+  /**
+   * Track ids that already received a listen vote this page session.
+   * Transient — not persisted.
+   */
+  listenAwardedIds: string[]
+  /**
+   * Track ids the user downvoted this page session.
+   * Transient — not persisted.
+   */
+  sessionDownvotes: string[]
   selectedId: string | null
   filters: Filters
   darkMode: boolean
@@ -143,6 +159,11 @@ interface VaultState {
   addPreviewToVault: () => Track | null
   removeTrack: (id: string) => void
   vote: (id: string, delta: 1 | -1) => void
+  /**
+   * +1 after a real completed listen. Once per track per session.
+   * No-op if the user downvoted the track this session.
+   */
+  awardCompletedListen: (id: string) => boolean
   updateNotes: (id: string, notes: string) => void
   resetToSeed: () => void
   /** Empty the library and stop playback. Persists; seeds are not re-injected. */
@@ -277,6 +298,8 @@ export const useVaultStore = create<VaultState>()(
       queue: [],
       nowPlayingId: null,
       isPlaying: false,
+      listenAwardedIds: [],
+      sessionDownvotes: [],
       selectedId: highestVotedTrackId(SEED_TRACKS),
       filters: defaultFilters,
       darkMode: true,
@@ -349,14 +372,43 @@ export const useVaultStore = create<VaultState>()(
       },
 
       vote: (id, delta) => {
-        set((s) => ({
+        set((s) => {
+          const sessionDownvotes =
+            delta === -1
+              ? s.sessionDownvotes.includes(id)
+                ? s.sessionDownvotes
+                : [...s.sessionDownvotes, id]
+              : s.sessionDownvotes.filter((x) => x !== id)
+          return {
+            tracks: s.tracks.map((t) =>
+              t.id === id ? { ...t, score: t.score + delta } : t,
+            ),
+            guestTracks: s.guestTracks.map((t) =>
+              t.id === id ? { ...t, score: t.score + delta } : t,
+            ),
+            sessionDownvotes,
+          }
+        })
+      },
+
+      awardCompletedListen: (id) => {
+        const s = get()
+        if (s.listenAwardedIds.includes(id)) return false
+        if (s.sessionDownvotes.includes(id)) return false
+        const inVault =
+          s.tracks.some((t) => t.id === id) ||
+          s.guestTracks.some((t) => t.id === id)
+        if (!inVault) return false
+        set({
+          listenAwardedIds: [...s.listenAwardedIds, id],
           tracks: s.tracks.map((t) =>
-            t.id === id ? { ...t, score: t.score + delta } : t,
+            t.id === id ? { ...t, score: t.score + 1 } : t,
           ),
           guestTracks: s.guestTracks.map((t) =>
-            t.id === id ? { ...t, score: t.score + delta } : t,
+            t.id === id ? { ...t, score: t.score + 1 } : t,
           ),
-        }))
+        })
+        return true
       },
 
       updateNotes: (id, notes) => {
@@ -464,11 +516,15 @@ export const useVaultStore = create<VaultState>()(
         }
         set((s) => {
           const existingIds = new Set(s.tracks.map((t) => t.id))
-          const existingYt = new Set(s.tracks.map((t) => t.youtubeId))
+          const existingClips = new Set(
+            s.tracks.map((t) => clipKey(t.youtubeId, t.startSeconds)),
+          )
           const merged = [
             ...s.tracks,
             ...tracksWithBPM.filter(
-              (t) => !existingIds.has(t.id) && !existingYt.has(t.youtubeId),
+              (t) =>
+                !existingIds.has(t.id) &&
+                !existingClips.has(clipKey(t.youtubeId, t.startSeconds)),
             ),
           ]
           return { tracks: merged }
@@ -529,20 +585,23 @@ export const useVaultStore = create<VaultState>()(
           return
         }
 
-        // Merge by youtubeId; remap playback to library ids.
+        // Merge by video + cue point; remap playback to library ids.
         set((s) => {
-          const byYt = new Map(s.tracks.map((t) => [t.youtubeId, t]))
+          const byClip = new Map(
+            s.tracks.map((t) => [clipKey(t.youtubeId, t.startSeconds), t]),
+          )
           const idMap = new Map<string, string>()
           const toAdd: Track[] = []
 
           for (const g of guestTracks) {
-            const existing = byYt.get(g.youtubeId)
+            const key = clipKey(g.youtubeId, g.startSeconds)
+            const existing = byClip.get(key)
             if (existing) {
               idMap.set(g.id, existing.id)
             } else {
               toAdd.push(g)
               idMap.set(g.id, g.id)
-              byYt.set(g.youtubeId, g)
+              byClip.set(key, g)
             }
           }
 
@@ -875,10 +934,13 @@ export const useVaultStore = create<VaultState>()(
 
       playPreview: (input) => {
         const s = get()
+        const key = clipKey(input.youtubeId, input.startSeconds)
+        const sameClip = (t: Track) =>
+          clipKey(t.youtubeId, t.startSeconds) === key
         const known =
-          s.tracks.find((t) => t.youtubeId === input.youtubeId) ??
-          s.guestTracks.find((t) => t.youtubeId === input.youtubeId) ??
-          (s.previewTrack?.youtubeId === input.youtubeId
+          s.tracks.find(sameClip) ??
+          s.guestTracks.find(sameClip) ??
+          (s.previewTrack && sameClip(s.previewTrack)
             ? s.previewTrack
             : undefined)
         if (known) {
@@ -906,6 +968,7 @@ export const useVaultStore = create<VaultState>()(
           era: preview.era,
           year: preview.year,
           notes: preview.notes,
+          startSeconds: preview.startSeconds,
         })
       },
 
@@ -1210,6 +1273,8 @@ export const useVaultStore = create<VaultState>()(
           awaitingPublishedSeeds: !tracksPersisted,
           nowPlayingId: null,
           isPlaying: false,
+          listenAwardedIds: [],
+          sessionDownvotes: [],
           selectedId: topVoted,
           queue,
           filters: p.filters

@@ -11,7 +11,8 @@ DJ Vault is the ultimate music discovery and curation platform for exploring roc
 - **21 Seed Tracks** - Hand-picked classics from Metallica, Nirvana, Pearl Jam, Tool, Ghost, Tesla, and more
 - **Smart BPM Detection** - Every track shows tempo (beats per minute) for mixing
 - **Visual Waveforms** - Unique waveform visualization for each track
-- **Vote System** - Reddit-style upvote/downvote to build your favorites
+- **Vote System** - Reddit-style upvote/downvote to build your favorites. A track that you hear to the end (about 80% of its length) gets +1 once per visit, unless you downvoted it.
+- **Concert cues** - Paste a YouTube concert link with `t=` (or enter a start time) so playback jumps to that song in the set. The same video can be added more than once with different start times.
 - **Genre & Era Filtering** - Browse by Metal, Grunge, Punk, and more across 70s-20s
 
 ### 🔍 Discovery Engine

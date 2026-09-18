@@ -14,6 +14,8 @@ export interface SharePayloadV1 {
     yr: number
     s?: number
     n?: string
+    /** Cue point in seconds (song inside a concert). */
+    ss?: number
   }>
 }
 
@@ -80,6 +82,9 @@ export function tracksToSharePayload(
       yr: t.year,
       ...(t.score !== 0 ? { s: t.score } : {}),
       ...(t.notes ? { n: t.notes } : {}),
+      ...(t.startSeconds && t.startSeconds > 0
+        ? { ss: Math.floor(t.startSeconds) }
+        : {}),
     })),
   }
   const trimmed = name?.trim()
@@ -128,6 +133,9 @@ export function decodeSharePayload(encoded: string): ParsedShare | null {
         score: typeof row.s === "number" ? Math.round(row.s) : 0,
         notes: typeof row.n === "string" ? row.n.trim().slice(0, 500) : "",
         addedAt: now,
+        ...(typeof row.ss === "number" && row.ss > 0
+          ? { startSeconds: Math.floor(row.ss) }
+          : {}),
       })
     }
 

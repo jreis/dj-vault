@@ -53,6 +53,9 @@ export interface YtPlayer {
   pauseVideo: () => void
   stopVideo: () => void
   getPlayerState: () => number
+  getCurrentTime: () => number
+  getDuration: () => number
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void
 }
 
 /** The Player currently mounted in the page — used to resume from a user gesture. */
@@ -144,6 +147,8 @@ export interface CreatePlayerOptions {
   element: HTMLElement
   videoId: string
   autoplay?: boolean
+  /** Cue the video at this second (concert song start). */
+  startSeconds?: number
   onEnded?: () => void
   onError?: (code: number) => void
   onReady?: () => void
@@ -169,6 +174,9 @@ export async function createYouTubePlayer(
         rel: 0,
         modestbranding: 1,
         playsinline: 1,
+        ...(options.startSeconds && options.startSeconds > 0
+          ? { start: Math.floor(options.startSeconds) }
+          : {}),
         // Origin helps some embed restriction checks; ignore if unavailable.
         ...(typeof window !== "undefined" && window.location?.origin
           ? { origin: window.location.origin }
@@ -176,6 +184,17 @@ export async function createYouTubePlayer(
       },
       events: {
         onReady: (e) => {
+          const start =
+            options.startSeconds && options.startSeconds > 0
+              ? Math.floor(options.startSeconds)
+              : 0
+          if (start > 0) {
+            try {
+              e.target.seekTo(start, true)
+            } catch {
+              // start= playerVar may already have cued the time.
+            }
+          }
           // autoplay=1 is often ignored; an explicit play() is more reliable.
           if (options.autoplay !== false) {
             try {

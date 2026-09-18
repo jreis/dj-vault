@@ -1,6 +1,11 @@
 import { useMemo, useRef, useState, type FormEvent } from "react"
 import { ERAS, GENRES, type Era, type Genre } from "../types"
-import { parseYouTubeId, youtubeThumbUrl } from "../lib/youtube"
+import {
+  formatStartTime,
+  parseTimestampToSeconds,
+  parseYouTubeClip,
+  youtubeThumbUrl,
+} from "../lib/youtube"
 import { eraFromYear, guessTrackMeta } from "../lib/guessTrackMeta"
 import {
   DiscoverError,
@@ -30,6 +35,7 @@ export function AddTrackForm() {
   const [era, setEra] = useState<Era>("90s")
   const [year, setYear] = useState<number | "">(1995)
   const [notes, setNotes] = useState("")
+  const [startAt, setStartAt] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [eraManual, setEraManual] = useState(false)
 
@@ -42,7 +48,8 @@ export function AddTrackForm() {
   const [searchErrorCode, setSearchErrorCode] = useState<string | null>(null)
   const searchSeq = useRef(0)
 
-  const parsedId = useMemo(() => parseYouTubeId(youtube), [youtube])
+  const parsedClip = useMemo(() => parseYouTubeClip(youtube), [youtube])
+  const parsedId = parsedClip?.youtubeId ?? null
   const vaultYtIds = useMemo(
     () => new Set(tracks.map((t) => t.youtubeId)),
     [tracks],
@@ -89,6 +96,7 @@ export function AddTrackForm() {
 
   function selectVideo(video: DiscoverVideo) {
     setYoutube(video.youtubeId)
+    setStartAt("")
     const guessed = guessTrackMeta({
       query,
       videoTitle: video.title,
@@ -100,8 +108,16 @@ export function AddTrackForm() {
     setYearAndMaybeEra(guessed.year)
   }
 
+  function startSecondsFromForm(): number | undefined {
+    const fromField = parseTimestampToSeconds(startAt)
+    if (fromField && fromField > 0) return fromField
+    const fromUrl = parsedClip?.startSeconds
+    if (fromUrl && fromUrl > 0) return fromUrl
+    return undefined
+  }
+
   function previewSelected() {
-    const youtubeId = parseYouTubeId(youtube)
+    const youtubeId = parsedClip?.youtubeId
     if (!youtubeId) return
     const label = title.trim() || "track"
     playPreview({
@@ -112,6 +128,7 @@ export function AddTrackForm() {
       era,
       year: typeof year === "number" ? year : 1995,
       notes: notes.trim(),
+      startSeconds: startSecondsFromForm(),
     })
     showToast(`Previewing “${label}” — not in the vault yet`, "info")
     queueMicrotask(() => {
@@ -130,13 +147,17 @@ export function AddTrackForm() {
     e.preventDefault()
     setError(null)
 
-    const youtubeId = parseYouTubeId(youtube)
+    const youtubeId = parsedClip?.youtubeId
     if (!youtubeId) {
       setError(
         mode === "search"
           ? "Search and pick a video, or switch to Paste link."
           : "Paste a valid YouTube URL or 11-character video ID.",
       )
+      return
+    }
+    if (startAt.trim() && parseTimestampToSeconds(startAt) == null) {
+      setError("Start time is not valid. Use seconds, m:ss, h:mm:ss, or 1h2m3s.")
       return
     }
     if (!title.trim() || !artist.trim()) {
@@ -152,12 +173,22 @@ export function AddTrackForm() {
       return
     }
 
-    addTrack({ title, artist, youtubeId, genre, era, year, notes })
+    addTrack({
+      title,
+      artist,
+      youtubeId,
+      genre,
+      era,
+      year,
+      notes,
+      startSeconds: startSecondsFromForm(),
+    })
     showToast(`Added “${title.trim()}” to the vault`, "success")
     setTitle("")
     setArtist("")
     setYoutube("")
     setNotes("")
+    setStartAt("")
     setEraManual(false)
     setQuery("")
     setSearchResults([])
@@ -181,7 +212,9 @@ export function AddTrackForm() {
       </div>
       <p className="mb-3 text-xs leading-relaxed text-vault-muted">
         Search YouTube and pick a result, or paste a link directly. Title and
-        artist stay editable so the vault stays curated.
+        artist stay editable so the vault stays curated. For a full concert,
+        paste a link with <span className="font-mono">t=</span> (or enter a
+        start time) so playback cues that song.
       </p>
 
       <div className="mb-3 inline-flex gap-1 rounded-lg border border-vault-border bg-vault-elevated/50 p-0.5 text-xs">
@@ -301,11 +334,18 @@ export function AddTrackForm() {
           <input
             required
             value={youtube}
-            onChange={(e) => setYoutube(e.target.value)}
-            placeholder="https://youtube.com/watch?v=… or youtu.be/…"
+            placeholder="https://youtube.com/watch?v=…&t=1h23m45s"
             className="rounded-lg border border-vault-border bg-vault-elevated px-3 py-2 text-sm focus:border-vault-amber focus:outline-none"
             autoComplete="off"
             spellCheck={false}
+            onChange={(e) => {
+              const v = e.target.value
+              setYoutube(v)
+              const clip = parseYouTubeClip(v)
+              if (clip && clip.startSeconds > 0) {
+                setStartAt(formatStartTime(clip.startSeconds))
+              }
+            }}
           />
           {youtube && !parsedId && (
             <span className="text-[11px] text-vault-red/90">
@@ -355,6 +395,30 @@ export function AddTrackForm() {
             Preview
           </button>
         </div>
+      )}
+
+      {parsedId && (
+        <label className="mb-4 flex flex-col gap-1">
+          <span className="text-xs text-vault-muted">
+            Start at{" "}
+            <span className="font-normal text-vault-muted/70">
+              (optional — song inside a concert)
+            </span>
+          </span>
+          <input
+            value={startAt}
+            onChange={(e) => setStartAt(e.target.value)}
+            placeholder="1:23:45 or 83m12s"
+            className="rounded-lg border border-vault-border bg-vault-elevated px-3 py-2 text-sm focus:border-vault-amber focus:outline-none"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          {startAt.trim() && parseTimestampToSeconds(startAt) == null && (
+            <span className="text-[11px] text-vault-red/90">
+              Use seconds, m:ss, h:mm:ss, or 1h2m3s
+            </span>
+          )}
+        </label>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

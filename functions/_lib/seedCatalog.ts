@@ -103,6 +103,9 @@ function convertTracksToSeeds(
       title: t.title,
       artist: t.artist,
       youtubeId: t.youtubeId,
+      ...(t.startSeconds && t.startSeconds > 0
+        ? { startSeconds: Math.floor(t.startSeconds) }
+        : {}),
       genre: t.genre,
       era: t.era,
       year: t.year,
@@ -192,6 +195,9 @@ export function parseSeedTrackPayload(raw: unknown): Track[] | null {
       title: t.title.trim(),
       artist: t.artist.trim(),
       youtubeId: t.youtubeId.trim(),
+      ...(typeof t.startSeconds === "number" && t.startSeconds > 0
+        ? { startSeconds: Math.floor(t.startSeconds) }
+        : {}),
       genre: t.genre as Genre,
       era: t.era as Era,
       year: t.year,

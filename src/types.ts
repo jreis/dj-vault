@@ -16,6 +16,11 @@ export interface Track {
   title: string
   artist: string
   youtubeId: string
+  /**
+   * Cue point in the YouTube video (seconds). Use this for a song inside
+   * a full concert. Omitted or 0 means play from the start.
+   */
+  startSeconds?: number
   genre: Genre
   era: Era
   year: number

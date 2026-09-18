@@ -3,7 +3,11 @@ import {
   selectPlaybackTracks,
   useVaultStore,
 } from "../store/useVaultStore"
-import { youtubeThumbUrl, youtubeWatchUrl } from "../lib/youtube"
+import {
+  formatStartTime,
+  youtubeThumbUrl,
+  youtubeWatchUrl,
+} from "../lib/youtube"
 import {
   createYouTubePlayer,
   pauseActiveYtPlayer,
@@ -19,6 +23,7 @@ import {
   type WakeLockLike,
   type WakeLockSentinelLike,
 } from "../lib/playbackSession"
+import { shouldAwardListenVote } from "../lib/listenVote"
 import type { Track } from "../types"
 import { AudioVisualizer } from "./AudioVisualizer"
 import { AddToPlaylistMenu } from "./AddToPlaylistMenu"
@@ -73,6 +78,8 @@ export function Player() {
   const wiredTrackIdRef = useRef<string | null>(null)
   const playNextRef = useRef(playNext)
   playNextRef.current = playNext
+  const maxHeardRef = useRef(0)
+  const endedFromErrorRef = useRef(false)
 
   const [unavailable, setUnavailable] = useState<string | null>(null)
   const [playerReady, setPlayerReady] = useState(false)
@@ -80,6 +87,9 @@ export function Player() {
 
   const trackId = current?.id ?? null
   const videoId = current?.youtubeId ?? null
+  const startSeconds = current?.startSeconds && current.startSeconds > 0
+    ? Math.floor(current.startSeconds)
+    : 0
 
   // Lock page scroll while Set Mode is open.
   useEffect(() => {
@@ -105,6 +115,8 @@ export function Player() {
     }
 
     wiredTrackIdRef.current = trackId
+    maxHeardRef.current = startSeconds
+    endedFromErrorRef.current = false
     setUnavailable(null)
     setPlayerReady(false)
     setApiError(null)
@@ -134,6 +146,7 @@ export function Player() {
     createYouTubePlayer({
       element: mount,
       videoId,
+      startSeconds: startSeconds > 0 ? startSeconds : undefined,
       autoplay: isPlaying,
       onReady: () => {
         if (cancelled || wiredTrackIdRef.current !== trackId) return
@@ -141,10 +154,33 @@ export function Player() {
       },
       onEnded: () => {
         if (cancelled || wiredTrackIdRef.current !== trackId) return
+        let duration = 0
+        try {
+          duration = playerRef.current?.getDuration() ?? 0
+        } catch {
+          duration = 0
+        }
+        if (
+          shouldAwardListenVote({
+            durationSec: duration,
+            maxHeardSec: maxHeardRef.current,
+            alreadyAwarded: useVaultStore
+              .getState()
+              .listenAwardedIds.includes(trackId),
+            downvotedThisSession: useVaultStore
+              .getState()
+              .sessionDownvotes.includes(trackId),
+            endedFromError: endedFromErrorRef.current,
+            startSeconds,
+          })
+        ) {
+          useVaultStore.getState().awardCompletedListen(trackId)
+        }
         playNextRef.current()
       },
       onError: (code) => {
         if (cancelled || wiredTrackIdRef.current !== trackId) return
+        endedFromErrorRef.current = true
         setUnavailable(youtubeErrorMessage(code))
         scheduleSkip()
       },
@@ -173,7 +209,26 @@ export function Player() {
       playerRef.current?.destroy()
       playerRef.current = null
     }
-  }, [trackId, videoId])
+  }, [trackId, videoId, startSeconds])
+
+  useEffect(() => {
+    if (!playerReady || !isPlaying) return
+    const tick = () => {
+      const player = playerRef.current
+      if (!player) return
+      try {
+        const t = player.getCurrentTime()
+        if (Number.isFinite(t) && t > maxHeardRef.current) {
+          maxHeardRef.current = t
+        }
+      } catch {
+        // iframe may not be ready
+      }
+    }
+    tick()
+    const timer = window.setInterval(tick, 1000)
+    return () => window.clearInterval(timer)
+  }, [playerReady, isPlaying, trackId])
 
   useEffect(() => {
     if (!playerReady) return
@@ -432,7 +487,7 @@ export function Player() {
                         Skip now
                       </button>
                       <a
-                        href={youtubeWatchUrl(current.youtubeId)}
+                        href={youtubeWatchUrl(current.youtubeId, current.startSeconds)}
                         target="_blank"
                         rel="noreferrer"
                         className="min-h-9 rounded-lg border border-vault-border px-3 py-1.5 text-xs text-vault-muted hover:text-vault-blue"
@@ -480,6 +535,12 @@ export function Player() {
                     }
                   >
                     {current.artist}
+                    {startSeconds > 0 && (
+                      <span className={setMode ? "text-stone-500" : ""}>
+                        {" "}
+                        · from {formatStartTime(startSeconds)}
+                      </span>
+                    )}
                     {setMode ? (
                       <>
                         <span className="text-stone-600"> · </span>
@@ -578,7 +639,7 @@ export function Player() {
                     Stop
                   </button>
                   <a
-                    href={youtubeWatchUrl(current.youtubeId)}
+                    href={youtubeWatchUrl(current.youtubeId, current.startSeconds)}
                     target="_blank"
                     rel="noreferrer"
                     className={
