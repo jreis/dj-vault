@@ -76,6 +76,17 @@ export function resumeActiveYtPlayer(): boolean {
   }
 }
 
+/** Pause the mounted player. Safe if none is mounted. */
+export function pauseActiveYtPlayer(): boolean {
+  if (!activePlayer) return false
+  try {
+    activePlayer.pauseVideo()
+    return true
+  } catch {
+    return false
+  }
+}
+
 interface YtPlayerConfig {
   videoId: string
   width?: string | number

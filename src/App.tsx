@@ -132,6 +132,16 @@ export default function App() {
     return () => applyArtistTheme(null, document.documentElement)
   }, [artistExperience])
 
+  // After load (and when filters hide the current row), select the
+  // highest-voted track in the visible list. Default sort is score desc.
+  useEffect(() => {
+    if (!hydrated || visibleIds.length === 0) return
+    const sel = useVaultStore.getState().selectedId
+    if (!sel || !visibleIds.includes(sel)) {
+      useVaultStore.getState().select(visibleIds[0]!)
+    }
+  }, [hydrated, visibleIds])
+
   useKeyboardNav(visibleIds, {
     onOpenShortcuts: openShortcuts,
     onCloseOverlays: closeShortcuts,

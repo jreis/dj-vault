@@ -10,7 +10,10 @@ import { SEED_PLAYLISTS } from "../data/seedPlaylists"
 import { replaceCuratedPlaylists } from "../../functions/_lib/seedCatalog"
 import type { PublishedCatalog } from "../lib/seedApi"
 import { estimateBPM } from "../lib/bpm"
-import { resumeActiveYtPlayer } from "../lib/youtubeApi"
+import {
+  pauseActiveYtPlayer,
+  resumeActiveYtPlayer,
+} from "../lib/youtubeApi"
 import { songIdentity, uniqueSongs } from "../lib/youtubeDiscover.ts"
 import type { Filters, Genre, Playlist, Track } from "../types"
 
@@ -84,6 +87,11 @@ interface VaultState {
   previewTrack: Track | null
   queue: string[]
   nowPlayingId: string | null
+  /**
+   * True while the user asked the player to run.
+   * False on load so a cued track does not autoplay.
+   */
+  isPlaying: boolean
   selectedId: string | null
   filters: Filters
   darkMode: boolean
@@ -169,6 +177,8 @@ interface VaultState {
 
   // playback
   play: (id: string) => void
+  /** Play or pause the current (or selected / highest-voted) track. */
+  togglePlayback: () => void
   stop: () => void
   enqueue: (id: string) => void
   /** Insert at front of queue (play next). Moves if already queued. */
@@ -233,6 +243,19 @@ export function selectPlaybackTracks(s: {
   return [...byId.values()]
 }
 
+/** Track id with the highest vote score (title as tie-break). */
+export function highestVotedTrackId(tracks: Track[]): string | null {
+  if (tracks.length === 0) return null
+  let best = tracks[0]!
+  for (const t of tracks) {
+    if (t.score > best.score) best = t
+    else if (t.score === best.score && t.title.localeCompare(best.title) < 0) {
+      best = t
+    }
+  }
+  return best.id
+}
+
 function currentSetIds(s: {
   nowPlayingId: string | null
   queue: string[]
@@ -254,7 +277,8 @@ export const useVaultStore = create<VaultState>()(
       previewTrack: null,
       queue: [],
       nowPlayingId: null,
-      selectedId: SEED_TRACKS[0]?.id ?? null,
+      isPlaying: false,
+      selectedId: highestVotedTrackId(SEED_TRACKS),
       filters: defaultFilters,
       darkMode: true,
       showAddForm: false,
@@ -315,6 +339,8 @@ export const useVaultStore = create<VaultState>()(
             tracks,
             queue: s.queue.filter((q) => q !== id),
             nowPlayingId: s.nowPlayingId === id ? null : s.nowPlayingId,
+            isPlaying:
+              s.nowPlayingId === id ? false : s.isPlaying,
             selectedId: s.selectedId === id ? null : s.selectedId,
             similarToId: s.similarToId === id ? null : s.similarToId,
             playlists: prunePlaylistIds(s.playlists, trackIds),
@@ -354,7 +380,8 @@ export const useVaultStore = create<VaultState>()(
           previewTrack: null,
           queue: [],
           nowPlayingId: null,
-          selectedId: seeds[0]?.id ?? null,
+          isPlaying: false,
+          selectedId: highestVotedTrackId(seeds),
           filters: defaultFilters,
           similarToId: null,
           setMode: false,
@@ -371,6 +398,7 @@ export const useVaultStore = create<VaultState>()(
           previewTrack: null,
           queue: [],
           nowPlayingId: null,
+          isPlaying: false,
           selectedId: null,
           similarToId: null,
           setMode: false,
@@ -404,7 +432,7 @@ export const useVaultStore = create<VaultState>()(
               awaitingPublishedSeeds: false,
               tracks: seedTracks,
               playlists: publishedPlaylists ?? SEED_PLAYLISTS,
-              selectedId: seedTracks[0]?.id ?? s.selectedId,
+              selectedId: highestVotedTrackId(seedTracks) ?? s.selectedId,
             }
           }
           // An intentionally empty vault stays empty; Reset seed still uses catalog.
@@ -436,7 +464,8 @@ export const useVaultStore = create<VaultState>()(
             tracks: tracksWithBPM,
             queue: [],
             nowPlayingId: null,
-            selectedId: tracksWithBPM[0]?.id ?? null,
+            isPlaying: false,
+            selectedId: highestVotedTrackId(tracksWithBPM),
             playlists: prunePlaylistIds(s.playlists, trackIds),
             guestTracks: [],
             guestSetName: null,
@@ -467,6 +496,7 @@ export const useVaultStore = create<VaultState>()(
           guestSetName: name?.trim() || null,
           previewTrack: null,
           nowPlayingId: first,
+          isPlaying: true,
           selectedId: first,
           queue: rest,
           setMode: tracks.length > 1,
@@ -485,6 +515,7 @@ export const useVaultStore = create<VaultState>()(
             guestTracks: [],
             guestSetName: null,
             nowPlayingId,
+            isPlaying: nowPlayingId ? s.isPlaying : false,
             queue,
             setMode: nowPlayingId || queue.length ? s.setMode : false,
           }
@@ -501,6 +532,7 @@ export const useVaultStore = create<VaultState>()(
             playlists: [],
             queue: guestTracks.slice(1).map((t) => t.id),
             nowPlayingId: guestTracks[0]?.id ?? null,
+            isPlaying: Boolean(guestTracks[0]),
             selectedId: guestTracks[0]?.id ?? null,
             guestTracks: [],
             guestSetName: null,
@@ -805,6 +837,7 @@ export const useVaultStore = create<VaultState>()(
           guestSetName: null,
           previewTrack: null,
           nowPlayingId: first,
+          isPlaying: true,
           selectedId: first,
           queue: rest,
           youtubePlayBestOf: false,
@@ -867,6 +900,7 @@ export const useVaultStore = create<VaultState>()(
         set({
           previewTrack: track,
           nowPlayingId: track.id,
+          isPlaying: true,
           selectedId: track.id,
         })
         return track
@@ -891,6 +925,7 @@ export const useVaultStore = create<VaultState>()(
         const preview = get().previewTrack
         set({
           nowPlayingId: id,
+          isPlaying: true,
           selectedId: id,
           previewTrack: previewIfCurrent(preview, id),
         })
@@ -900,8 +935,28 @@ export const useVaultStore = create<VaultState>()(
           resumeActiveYtPlayer()
         }
       },
+
+      togglePlayback: () => {
+        const s = get()
+        if (s.isPlaying) {
+          pauseActiveYtPlayer()
+          set({ isPlaying: false })
+          return
+        }
+        const id =
+          s.nowPlayingId ??
+          s.selectedId ??
+          highestVotedTrackId(selectPlaybackTracks(s))
+        if (id) get().play(id)
+      },
+
       stop: () =>
-        set({ nowPlayingId: null, setMode: false, previewTrack: null }),
+        set({
+          nowPlayingId: null,
+          isPlaying: false,
+          setMode: false,
+          previewTrack: null,
+        }),
 
       enqueue: (id) => {
         set((s) => (s.queue.includes(id) ? s : { queue: [...s.queue, id] }))
@@ -970,6 +1025,7 @@ export const useVaultStore = create<VaultState>()(
         const [first, ...rest] = ids
         set({
           nowPlayingId: first,
+          isPlaying: true,
           selectedId: first,
           queue: rest,
           previewTrack: previewIfCurrent(get().previewTrack, first),
@@ -985,6 +1041,7 @@ export const useVaultStore = create<VaultState>()(
           const [next, ...rest] = queue
           set({
             nowPlayingId: next,
+            isPlaying: true,
             selectedId: next,
             queue: rest,
             previewTrack: previewIfCurrent(previewTrack, next),
@@ -996,6 +1053,7 @@ export const useVaultStore = create<VaultState>()(
           if (sorted[0])
             set({
               nowPlayingId: sorted[0].id,
+              isPlaying: true,
               selectedId: sorted[0].id,
               previewTrack: previewIfCurrent(previewTrack, sorted[0].id),
             })
@@ -1006,6 +1064,7 @@ export const useVaultStore = create<VaultState>()(
         if (next)
           set({
             nowPlayingId: next.id,
+            isPlaying: true,
             selectedId: next.id,
             previewTrack: previewIfCurrent(previewTrack, next.id),
           })
@@ -1019,6 +1078,7 @@ export const useVaultStore = create<VaultState>()(
           if (sorted[0])
             set({
               nowPlayingId: sorted[0].id,
+              isPlaying: true,
               selectedId: sorted[0].id,
               previewTrack: previewIfCurrent(previewTrack, sorted[0].id),
             })
@@ -1029,6 +1089,7 @@ export const useVaultStore = create<VaultState>()(
         if (prev)
           set({
             nowPlayingId: prev.id,
+            isPlaying: true,
             selectedId: prev.id,
             previewTrack: previewIfCurrent(previewTrack, prev.id),
           })
@@ -1103,12 +1164,12 @@ export const useVaultStore = create<VaultState>()(
     }),
     {
       name: "dj-vault-v1",
-      // Persist library + playlists + current track (and related UI prefs).
-      // Guest sets, previews, and transient UI are intentionally omitted.
+      // Persist library + playlists + queue + UI prefs.
+      // Playback position is not restored — load starts paused on the
+      // highest-voted track. Guest sets, previews, and transient UI omitted.
       partialize: (s) => ({
         tracks: s.tracks,
         playlists: s.playlists,
-        nowPlayingId: s.nowPlayingId,
         queue: s.queue,
         darkMode: s.darkMode,
         filters: s.filters,
@@ -1125,12 +1186,9 @@ export const useVaultStore = create<VaultState>()(
         )
 
         const trackIds = new Set(tracks.map((t) => t.id))
-        const nowPlayingId =
-          p.nowPlayingId && trackIds.has(p.nowPlayingId)
-            ? p.nowPlayingId
-            : null
+        const topVoted = highestVotedTrackId(tracks)
         const queue = Array.isArray(p.queue)
-          ? p.queue.filter((id) => trackIds.has(id))
+          ? p.queue.filter((id) => trackIds.has(id) && id !== topVoted)
           : current.queue
 
         const userPlaylists = Array.isArray(p.playlists)
@@ -1163,7 +1221,9 @@ export const useVaultStore = create<VaultState>()(
           publishedSeeds: null,
           publishedPlaylists: null,
           awaitingPublishedSeeds: !tracksPersisted,
-          nowPlayingId,
+          nowPlayingId: null,
+          isPlaying: false,
+          selectedId: topVoted,
           queue,
           filters: p.filters
             ? { ...current.filters, ...p.filters }

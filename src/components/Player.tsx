@@ -6,6 +6,7 @@ import {
 import { youtubeThumbUrl, youtubeWatchUrl } from "../lib/youtube"
 import {
   createYouTubePlayer,
+  pauseActiveYtPlayer,
   resumeActiveYtPlayer,
   setActiveYtPlayer,
   youtubeErrorMessage,
@@ -33,6 +34,7 @@ export function Player() {
   const previewTrack = useVaultStore((s) => s.previewTrack)
   const addPreviewToVault = useVaultStore((s) => s.addPreviewToVault)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
+  const isPlaying = useVaultStore((s) => s.isPlaying)
   const queue = useVaultStore((s) => s.queue)
   const playNext = useVaultStore((s) => s.playNext)
   const playPrev = useVaultStore((s) => s.playPrev)
@@ -132,7 +134,7 @@ export function Player() {
     createYouTubePlayer({
       element: mount,
       videoId,
-      autoplay: true,
+      autoplay: isPlaying,
       onReady: () => {
         if (cancelled || wiredTrackIdRef.current !== trackId) return
         setPlayerReady(true)
@@ -174,6 +176,12 @@ export function Player() {
   }, [trackId, videoId])
 
   useEffect(() => {
+    if (!playerReady) return
+    if (isPlaying) resumeActiveYtPlayer()
+    else pauseActiveYtPlayer()
+  }, [isPlaying, playerReady])
+
+  useEffect(() => {
     const session = navigator.mediaSession as MediaSessionLike | undefined
     bindMediaSession(
       session ?? null,
@@ -186,13 +194,15 @@ export function Player() {
         : null,
       {
         onPlay: () => {
-          resumeActiveYtPlayer()
+          if (!useVaultStore.getState().isPlaying) {
+            useVaultStore.getState().togglePlayback()
+          } else {
+            resumeActiveYtPlayer()
+          }
         },
         onPause: () => {
-          try {
-            playerRef.current?.pauseVideo()
-          } catch {
-            // iframe may already be gone
+          if (useVaultStore.getState().isPlaying) {
+            useVaultStore.getState().togglePlayback()
           }
         },
         onNext: () => playNext(),
@@ -208,7 +218,10 @@ export function Player() {
     let cancelled = false
 
     const sync = async () => {
-      const hold = Boolean(trackId) && document.visibilityState === "visible"
+      const hold =
+        Boolean(trackId) &&
+        useVaultStore.getState().isPlaying &&
+        document.visibilityState === "visible"
       const next = await syncScreenWakeLock(api, hold, sentinel)
       if (cancelled) {
         void next?.release()
@@ -219,7 +232,11 @@ export function Player() {
 
     const onVis = () => {
       void sync()
-      if (document.visibilityState === "visible" && trackId) {
+      if (
+        document.visibilityState === "visible" &&
+        trackId &&
+        useVaultStore.getState().isPlaying
+      ) {
         resumeActiveYtPlayer()
       }
     }
@@ -231,7 +248,7 @@ export function Player() {
       document.removeEventListener("visibilitychange", onVis)
       void sentinel?.release()
     }
-  }, [trackId])
+  }, [trackId, isPlaying])
 
   const skipLabel = useMemo(() => {
     if (!unavailable) return null

@@ -90,6 +90,7 @@ Finds related tracks based on:
 
 - `/` - Focus search
 - `j/k` or `↓/↑` - Navigate tracks
+- `Space` - Play / pause
 - `Enter` - Play selected track
 - `u/d` - Upvote/downvote
 - `q` - Queue selected track

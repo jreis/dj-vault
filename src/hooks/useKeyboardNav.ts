@@ -250,6 +250,13 @@ export function useKeyboardNav(
           }
           break
         }
+        case " ":
+        case "Spacebar": {
+          e.preventDefault()
+          takeCount()
+          store.togglePlayback()
+          break
+        }
         case "Enter": {
           if (store.selectedId) {
             e.preventDefault()

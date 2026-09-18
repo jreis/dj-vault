@@ -12,6 +12,7 @@ const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: "5j / 10k / 3G", action: "Counted move (vim)" },
   { keys: "Ctrl-d / Ctrl-u", action: "Jump half a page" },
   { keys: "zz", action: "Center selected track" },
+  { keys: "Space", action: "Play / pause" },
   { keys: "Enter", action: "Play selected track" },
   { keys: "u / d", action: "Upvote / downvote" },
   { keys: "q", action: "Add selected to queue" },
