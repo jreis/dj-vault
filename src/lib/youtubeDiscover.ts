@@ -129,6 +129,38 @@ export function isSameSong(
   return songIdentity(a.title, a.artist) === songIdentity(b.title, b.artist)
 }
 
+/** True when a YouTube hit is the same song, even if title parsing splits oddly. */
+export function videoLooksLikeSong(
+  seed: { title: string; artist: string },
+  video: DiscoverVideo,
+): boolean {
+  const meta = guessTitleArtist(video.title, video.channelTitle)
+  if (isSameSong(seed, meta)) return true
+  const hay = `${video.title} ${video.channelTitle}`.toLowerCase()
+  const title = seed.title.toLowerCase().trim()
+  const artist = seed.artist.toLowerCase().trim()
+  if (title.length < 4 || artist.length < 3) return false
+  return hay.includes(title) && hay.includes(artist)
+}
+
+/**
+ * First search hit that is the same song and not an already-failed upload.
+ * Used when the chosen video can't embed — keep the song, swap the video.
+ */
+export function pickAlternateVideo(
+  seed: { title: string; artist: string; youtubeId: string },
+  items: DiscoverVideo[],
+  triedIds: ReadonlySet<string> = new Set(),
+): DiscoverVideo | null {
+  const blocked = new Set(triedIds)
+  blocked.add(seed.youtubeId)
+  for (const video of items) {
+    if (blocked.has(video.youtubeId)) continue
+    if (videoLooksLikeSong(seed, video)) return video
+  }
+  return null
+}
+
 function takeUniqueVideos(
   items: DiscoverVideo[],
   taken: Set<string>,
@@ -293,6 +325,7 @@ export async function searchYouTubeVideos(
   query: string,
   exclude: Set<string>,
   signal?: AbortSignal,
+  opts?: { uniqueBySong?: boolean },
 ): Promise<{ items: DiscoverVideo[]; query: string }> {
   if (isDiscoverClientBlocked()) {
     throw new DiscoverError(
@@ -329,8 +362,33 @@ export async function searchYouTubeVideos(
     throw new DiscoverError(data.error ?? `Search failed (${res.status})`, code)
   }
 
+  const items = data.items ?? []
   return {
-    items: uniqueDiscoverVideos(data.items ?? []),
+    items: opts?.uniqueBySong === false ? items : uniqueDiscoverVideos(items),
     query: data.query ?? "",
+  }
+}
+
+/**
+ * Another embeddable-looking upload of the same song, or null if search is
+ * blocked / empty / only already-tried ids. Caller persists the new youtubeId.
+ */
+export async function fetchEmbedAlternate(
+  seed: { title: string; artist: string; youtubeId: string },
+  triedIds: ReadonlySet<string>,
+  signal?: AbortSignal,
+): Promise<DiscoverVideo | null> {
+  const q = `${seed.artist} ${seed.title}`.trim()
+  if (q.length < 2) return null
+  try {
+    const exclude = new Set(triedIds)
+    exclude.add(seed.youtubeId)
+    const res = await searchYouTubeVideos(q, exclude, signal, {
+      uniqueBySong: false,
+    })
+    return pickAlternateVideo(seed, res.items, exclude)
+  } catch (e) {
+    if (signal?.aborted) throw e
+    return null
   }
 }

@@ -1,5 +1,5 @@
 import type { Track } from "../types"
-import { estimateBPM } from "../lib/bpm"
+import { estimateBPM } from "../lib/bpm.ts"
 
 /**
  * Known-dead YouTube IDs that shipped in earlier seed data → current working IDs.
@@ -12,6 +12,8 @@ const DEAD_YOUTUBE_ID_FIXES: Record<string, string> = {
   uk_wUT1CvWM: "0qanF-91aJo",
   RUJMqVkYYIs: "Abrn8aVQ76Q",
   iwa9IY8uxsQ: "TAqZb52sgpU",
+  // Alive (was Jeremy official 4K — wrong song, embedding disabled)
+  MS91knuzoOA: "qM0zINtulhM",
 }
 
 /** Replace known-dead seed youtubeIds; leaves custom tracks alone unless ID matches. */
@@ -163,7 +165,7 @@ export const SEED_TRACKS: Track[] = [
     id: "seed-10",
     title: "Alive",
     artist: "Pearl Jam",
-    youtubeId: "MS91knuzoOA",
+    youtubeId: "qM0zINtulhM",
     genre: "Grunge",
     era: "90s",
     year: 1991,

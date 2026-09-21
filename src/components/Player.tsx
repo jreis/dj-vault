@@ -16,6 +16,7 @@ import {
   youtubeErrorMessage,
   type YtPlayer,
 } from "../lib/youtubeApi"
+import { fetchEmbedAlternate } from "../lib/youtubeDiscover"
 import {
   bindMediaSession,
   syncScreenWakeLock,
@@ -32,6 +33,8 @@ import { useToastStore } from "../store/useToastStore"
 
 /** Auto-skip delay after an unavailable embed so the user can read the message. */
 const UNAVAILABLE_SKIP_MS = 2500
+/** Give up after the original plus this many replacement uploads fail. */
+const MAX_EMBED_TRIES = 3
 
 export function Player() {
   const tracks = useVaultStore((s) => s.tracks)
@@ -54,6 +57,7 @@ export function Player() {
   const setMode = useVaultStore((s) => s.setMode)
   const setSetMode = useVaultStore((s) => s.setSetMode)
   const toggleSetMode = useVaultStore((s) => s.toggleSetMode)
+  const replaceYoutubeId = useVaultStore((s) => s.replaceYoutubeId)
   const showToast = useToastStore((s) => s.show)
 
   const playbackTracks = useMemo(
@@ -80,8 +84,13 @@ export function Player() {
   playNextRef.current = playNext
   const maxHeardRef = useRef(0)
   const endedFromErrorRef = useRef(false)
+  const embedTriesRef = useRef<{ trackId: string; ids: Set<string> }>({
+    trackId: "",
+    ids: new Set(),
+  })
 
   const [unavailable, setUnavailable] = useState<string | null>(null)
+  const [findingAlternate, setFindingAlternate] = useState(false)
   const [playerReady, setPlayerReady] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
 
@@ -90,6 +99,8 @@ export function Player() {
   const startSeconds = current?.startSeconds && current.startSeconds > 0
     ? Math.floor(current.startSeconds)
     : 0
+  const trackTitle = current?.title ?? ""
+  const trackArtist = current?.artist ?? ""
 
   // Lock page scroll while Set Mode is open.
   useEffect(() => {
@@ -109,20 +120,27 @@ export function Player() {
       playerRef.current = null
       wiredTrackIdRef.current = null
       setUnavailable(null)
+      setFindingAlternate(false)
       setPlayerReady(false)
       setApiError(null)
       return
+    }
+
+    if (embedTriesRef.current.trackId !== trackId) {
+      embedTriesRef.current = { trackId, ids: new Set() }
     }
 
     wiredTrackIdRef.current = trackId
     maxHeardRef.current = startSeconds
     endedFromErrorRef.current = false
     setUnavailable(null)
+    setFindingAlternate(false)
     setPlayerReady(false)
     setApiError(null)
 
     let cancelled = false
     let skipTimer: ReturnType<typeof setTimeout> | null = null
+    const ac = new AbortController()
     const host = hostRef.current
     if (!host) return
 
@@ -141,6 +159,14 @@ export function Player() {
         if (cancelled || wiredTrackIdRef.current !== trackId) return
         playNextRef.current()
       }, UNAVAILABLE_SKIP_MS)
+    }
+
+    const giveUp = (message: string) => {
+      if (cancelled || wiredTrackIdRef.current !== trackId) return
+      endedFromErrorRef.current = true
+      setFindingAlternate(false)
+      setUnavailable(message)
+      scheduleSkip()
     }
 
     createYouTubePlayer({
@@ -180,9 +206,36 @@ export function Player() {
       },
       onError: (code) => {
         if (cancelled || wiredTrackIdRef.current !== trackId) return
-        endedFromErrorRef.current = true
-        setUnavailable(youtubeErrorMessage(code))
-        scheduleSkip()
+        const reason = youtubeErrorMessage(code)
+        embedTriesRef.current.ids.add(videoId)
+        if (embedTriesRef.current.ids.size >= MAX_EMBED_TRIES) {
+          giveUp(reason)
+          return
+        }
+        setUnavailable(reason)
+        setFindingAlternate(true)
+        void fetchEmbedAlternate(
+          { title: trackTitle, artist: trackArtist, youtubeId: videoId },
+          embedTriesRef.current.ids,
+          ac.signal,
+        )
+          .then((alt) => {
+            if (cancelled || wiredTrackIdRef.current !== trackId) return
+            if (alt) {
+              embedTriesRef.current.ids.add(alt.youtubeId)
+              replaceYoutubeId(trackId, alt.youtubeId)
+              showToast(
+                `Playing another version of “${trackTitle}”`,
+                "info",
+              )
+              return
+            }
+            giveUp(reason)
+          })
+          .catch(() => {
+            if (cancelled || ac.signal.aborted) return
+            giveUp(reason)
+          })
       },
     })
       .then((player) => {
@@ -198,18 +251,18 @@ export function Player() {
         const msg =
           err instanceof Error ? err.message : "Could not load YouTube player"
         setApiError(msg)
-        setUnavailable("Player failed to load")
-        scheduleSkip()
+        giveUp("Player failed to load")
       })
 
     return () => {
       cancelled = true
+      ac.abort()
       if (skipTimer) clearTimeout(skipTimer)
       setActiveYtPlayer(null)
       playerRef.current?.destroy()
       playerRef.current = null
     }
-  }, [trackId, videoId, startSeconds])
+  }, [trackId, videoId, startSeconds, trackTitle, trackArtist, replaceYoutubeId, showToast])
 
   useEffect(() => {
     if (!playerReady || !isPlaying) return
@@ -307,9 +360,14 @@ export function Player() {
 
   const skipLabel = useMemo(() => {
     if (!unavailable) return null
+    if (findingAlternate) {
+      return trackTitle
+        ? `Looking for another version of “${trackTitle}”…`
+        : "Looking for another version…"
+    }
     const hasQueue = queue.length > 0
     return hasQueue ? "Skipping to next in queue…" : "Skipping to next track…"
-  }, [unavailable, queue.length])
+  }, [unavailable, queue.length, findingAlternate, trackTitle])
 
   function startTopSet() {
     const top = [...tracks]
@@ -470,7 +528,9 @@ export function Player() {
                       Video unavailable
                     </p>
                     <p className="max-w-xs text-xs text-vault-muted">
-                      {unavailable}
+                      {findingAlternate
+                        ? "This upload can't play here. Keeping the song and searching for another copy."
+                        : unavailable}
                       {apiError ? ` · ${apiError}` : ""}
                     </p>
                     {skipLabel && (

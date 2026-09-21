@@ -170,6 +170,8 @@ interface VaultState {
    */
   awardCompletedListen: (id: string) => boolean
   updateNotes: (id: string, notes: string) => void
+  /** Persist a replacement upload when the current embed cannot play. */
+  replaceYoutubeId: (id: string, youtubeId: string) => void
   resetToSeed: () => void
   /** Empty the library and stop playback. Persists; seeds are not re-injected. */
   clearLibrary: () => void
@@ -427,6 +429,23 @@ export const useVaultStore = create<VaultState>()(
         }))
       },
 
+      replaceYoutubeId: (id, youtubeId) => {
+        const next = youtubeId.trim()
+        if (!next) return
+        set((s) => {
+          const patch = (t: Track) =>
+            t.id === id ? { ...t, youtubeId: next } : t
+          return {
+            tracks: s.tracks.map(patch),
+            guestTracks: s.guestTracks.map(patch),
+            previewTrack:
+              s.previewTrack?.id === id
+                ? { ...s.previewTrack, youtubeId: next }
+                : s.previewTrack,
+          }
+        })
+      },
+
       resetToSeed: () => {
         const seeds = get().publishedSeeds ?? SEED_TRACKS
         const playlists = get().publishedPlaylists ?? SEED_PLAYLISTS
@@ -472,7 +491,7 @@ export const useVaultStore = create<VaultState>()(
           set({ awaitingPublishedSeeds: false })
           return
         }
-        const seedTracks = ensureTrackBPMs(catalog.tracks)
+        const seedTracks = ensureTrackBPMs(repairDeadYoutubeIds(catalog.tracks))
         const seedTrackIds = new Set(seedTracks.map((t) => t.id))
         const publishedPlaylists =
           catalog.playlists == null
