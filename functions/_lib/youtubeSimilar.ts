@@ -7,6 +7,8 @@
  *   (YouTube free quota reset) so we stop burning units / risking paid overages
  */
 
+import { decodeHtmlEntities } from "../../src/lib/youtubeDiscover.ts"
+
 export type SimilarSearchResult = {
   status: number
   body: Record<string, unknown>
@@ -370,8 +372,8 @@ async function runYouTubeSearch(
       if (!sn?.title) return null
       return {
         youtubeId,
-        title: sn.title,
-        channelTitle: sn.channelTitle ?? "",
+        title: decodeHtmlEntities(sn.title),
+        channelTitle: decodeHtmlEntities(sn.channelTitle ?? ""),
         thumbnailUrl:
           sn.thumbnails?.medium?.url ??
           sn.thumbnails?.default?.url ??

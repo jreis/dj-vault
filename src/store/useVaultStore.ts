@@ -14,7 +14,13 @@ import {
   resumeActiveYtPlayer,
 } from "../lib/youtubeApi"
 import { clipKey } from "../lib/youtube"
-import { songIdentity, uniqueSongs } from "../lib/youtubeDiscover.ts"
+import {
+  cleanVideoTitle,
+  decodeHtmlEntities,
+  repairHtmlEntities,
+  songIdentity,
+  uniqueSongs,
+} from "../lib/youtubeDiscover.ts"
 import type { Filters, Genre, Playlist, Track } from "../types"
 
 /** YouTube discovery result ready to become a guest (or existing) vault track. */
@@ -35,8 +41,8 @@ function uid(prefix = "t"): string {
 }
 
 function trackFromInput(input: DiscoveredTrackInput, id?: string): Track {
-  const title = input.title.trim()
-  const artist = input.artist.trim()
+  const title = cleanVideoTitle(input.title)
+  const artist = decodeHtmlEntities(input.artist).trim()
   const notes = input.notes?.trim() ?? ""
   const addedAt = new Date().toISOString()
   const draft: Track = {
@@ -491,7 +497,9 @@ export const useVaultStore = create<VaultState>()(
           set({ awaitingPublishedSeeds: false })
           return
         }
-        const seedTracks = ensureTrackBPMs(repairDeadYoutubeIds(catalog.tracks))
+        const seedTracks = ensureTrackBPMs(
+          repairHtmlEntities(repairDeadYoutubeIds(catalog.tracks)),
+        )
         const seedTrackIds = new Set(seedTracks.map((t) => t.id))
         const publishedPlaylists =
           catalog.playlists == null
@@ -527,7 +535,7 @@ export const useVaultStore = create<VaultState>()(
       },
 
       importTracks: (tracks, mode) => {
-        const tracksWithBPM = ensureTrackBPMs(tracks)
+        const tracksWithBPM = ensureTrackBPMs(repairHtmlEntities(tracks))
         if (mode === "replace") {
           const trackIds = new Set(tracksWithBPM.map((t) => t.id))
           set((s) => ({
@@ -562,7 +570,7 @@ export const useVaultStore = create<VaultState>()(
 
       loadGuestSet: (tracks, name) => {
         if (tracks.length === 0) return
-        const tracksWithBPM = ensureTrackBPMs(tracks)
+        const tracksWithBPM = ensureTrackBPMs(repairHtmlEntities(tracks))
         const ids = tracksWithBPM.map((t) => t.id)
         const [first, ...rest] = ids
         set({
@@ -1261,7 +1269,9 @@ export const useVaultStore = create<VaultState>()(
         const tracksPersisted = Array.isArray(p.tracks)
         const rawTracks = tracksPersisted ? p.tracks! : current.tracks
         const tracks = ensureTrackBPMs(
-          tracksPersisted ? repairDeadYoutubeIds(rawTracks) : rawTracks,
+          repairHtmlEntities(
+            tracksPersisted ? repairDeadYoutubeIds(rawTracks) : rawTracks,
+          ),
         )
 
         const trackIds = new Set(tracks.map((t) => t.id))

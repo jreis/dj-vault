@@ -98,19 +98,108 @@ export function titleCaseQuery(q: string): string {
     .join(" ")
 }
 
+const HTML_ENTITIES: Record<string, string> = {
+  amp: "&",
+  apos: "'",
+  gt: ">",
+  lt: "<",
+  nbsp: "\u00a0",
+  quot: '"',
+}
+
+/**
+ * YouTube snippet text is HTML-escaped (`&quot;`, `&#39;`, `&amp;`), sometimes
+ * twice (`&amp;quot;`). Turn that back into the characters in the song title.
+ */
+export function decodeHtmlEntities(raw: string): string {
+  let out = raw
+  for (let pass = 0; pass < 2; pass++) {
+    const next = out.replace(
+      /&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g,
+      (entity, body: string) => {
+        if (body.startsWith("#")) {
+          const hex = body[1] === "x" || body[1] === "X"
+          const code = Number.parseInt(body.slice(hex ? 2 : 1), hex ? 16 : 10)
+          if (
+            !Number.isInteger(code) ||
+            code < 0 ||
+            code > 0x10ffff ||
+            (code >= 0xd800 && code <= 0xdfff)
+          ) {
+            return entity
+          }
+          return String.fromCodePoint(code)
+        }
+        return HTML_ENTITIES[body.toLowerCase()] ?? entity
+      },
+    )
+    if (next === out) break
+    out = next
+  }
+  return out
+}
+
+/** " “ ” « » and a title wrapped in single quotes. Apostrophes inside a word stay. */
+const DOUBLE_QUOTES = /["“”„«»‟❝❞]/g
+
+/** Song titles are stored and shown without quotation marks. */
+export function stripTitleQuotes(raw: string): string {
+  const decoded = decodeHtmlEntities(raw).replace(DOUBLE_QUOTES, " ")
+  const collapsed = decoded.replace(/\s{2,}/g, " ").trim()
+  const unwrapped = collapsed.replace(/^['‘’]+|['‘’]+$/g, "").trim()
+  return unwrapped || collapsed
+}
+
+const UPLOAD_NOISE = new Set([
+  "official",
+  "audio",
+  "lyric",
+  "lyrics",
+  "video",
+  "music",
+  "hd",
+  "hq",
+  "4k",
+  "remaster",
+  "remastered",
+  "visualizer",
+  "visualiser",
+  "topic",
+])
+
+/** True when a parenthetical is upload metadata, not part of the song name. */
+function isUploadNoise(inner: string): boolean {
+  const words = inner.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+  return words.length > 0 && words.every((word) => UPLOAD_NOISE.has(word))
+}
+
+/**
+ * Drop (Official Lyric Video), [Official Audio], and a broken leftover
+ * like "(Official" when the closing half was already removed.
+ * (feat. Kimbra) and (Live) stay.
+ */
+function stripUploadNoise(raw: string): string {
+  let out = raw
+  for (let i = 0; i < 6; i++) {
+    const next = out.replace(
+      /[([{]\s*([^)\]}]+)\s*[)\]}]/g,
+      (whole, inner: string) => (isUploadNoise(inner) ? " " : whole),
+    )
+    if (next === out) break
+    out = next
+  }
+  return out.replace(/[([{]\s*([^)\]}]*)$/, (whole, inner: string) =>
+    isUploadNoise(inner) ? " " : whole,
+  )
+}
+
 /** Strip common YouTube title noise for vault metadata. */
 export function cleanVideoTitle(raw: string): string {
-  return raw
-    .replace(
-      /\s*[([{]?\s*(official\s*(music\s*)?video|official\s*audio|lyrics?(\s*video)?|audio|hd|hq|4k|remaster(ed)?|visuali[sz]er|topic)\s*[)\]}]?\s*/gi,
-      " ",
-    )
-    .replace(/\s{2,}/g, " ")
-    .trim()
+  return stripTitleQuotes(stripUploadNoise(decodeHtmlEntities(raw)))
 }
 
 function normSongText(s: string): string {
-  return s
+  return decodeHtmlEntities(s)
     .toLowerCase()
     .replace(/^the\s+/, "")
     .replace(/[^a-z0-9]+/g, " ")
@@ -245,7 +334,7 @@ export function guessTitleArtist(
   }
 
   const artist =
-    channelTitle
+    decodeHtmlEntities(channelTitle)
       .replace(/\s*[-–—]\s*Topic\s*$/i, "")
       .replace(/\s*VEVO\s*$/i, "")
       .trim() || "Unknown"
@@ -311,7 +400,11 @@ export async function fetchSimilarVideos(
   }
 
   return {
-    items: filterNewDiscoveries(data.items ?? [], seed, library),
+    items: filterNewDiscoveries(
+      decodeDiscoverVideos(data.items ?? []),
+      seed,
+      library,
+    ),
     query: data.query ?? "",
   }
 }
@@ -362,11 +455,37 @@ export async function searchYouTubeVideos(
     throw new DiscoverError(data.error ?? `Search failed (${res.status})`, code)
   }
 
-  const items = data.items ?? []
+  const items = decodeDiscoverVideos(data.items ?? [])
   return {
     items: opts?.uniqueBySong === false ? items : uniqueDiscoverVideos(items),
     query: data.query ?? "",
   }
+}
+
+function decodeDiscoverVideos(items: DiscoverVideo[]): DiscoverVideo[] {
+  return items.map((video) => {
+    const title = decodeHtmlEntities(video.title)
+    const channelTitle = decodeHtmlEntities(video.channelTitle)
+    if (title === video.title && channelTitle === video.channelTitle) {
+      return video
+    }
+    return { ...video, title, channelTitle }
+  })
+}
+
+/** Fix titles already saved with YouTube escapes, quotes, or upload notes. */
+export function repairHtmlEntities<T extends { title: string; artist: string }>(
+  tracks: T[],
+): T[] {
+  let changed = false
+  const next = tracks.map((track) => {
+    const title = cleanVideoTitle(track.title)
+    const artist = decodeHtmlEntities(track.artist)
+    if (title === track.title && artist === track.artist) return track
+    changed = true
+    return { ...track, title, artist }
+  })
+  return changed ? next : tracks
 }
 
 /**

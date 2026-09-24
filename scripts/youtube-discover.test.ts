@@ -1,7 +1,13 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+  cleanVideoTitle,
+  decodeHtmlEntities,
+  guessTitleArtist,
+  isSameSong,
   pickAlternateVideo,
+  repairHtmlEntities,
+  stripTitleQuotes,
   youtubeSearchFromEnter,
   type DiscoverVideo,
 } from "../src/lib/youtubeDiscover.ts"
@@ -44,6 +50,83 @@ describe("youtubeSearchFromEnter", () => {
       query: "Elvis",
       playBestOf: false,
     })
+  })
+})
+
+describe("html entities in titles", () => {
+  it("turns &quot; and &#39; back into quotes", () => {
+    assert.equal(
+      decodeHtmlEntities("Pink Floyd &quot;Wish You Were Here&quot;"),
+      'Pink Floyd "Wish You Were Here"',
+    )
+    assert.equal(
+      decodeHtmlEntities("Guns N&#39; Roses &amp; friends"),
+      "Guns N' Roses & friends",
+    )
+    assert.equal(
+      decodeHtmlEntities("Double &amp;quot;encoded&amp;quot;"),
+      'Double "encoded"',
+    )
+  })
+
+  it("drops quotes from a YouTube title, including HTML escapes", () => {
+    assert.equal(
+      cleanVideoTitle(
+        "Pink Floyd - &quot;Wish You Were Here&quot; (Official Video)",
+      ),
+      "Pink Floyd - Wish You Were Here",
+    )
+    assert.deepEqual(
+      guessTitleArtist(
+        "Pink Floyd - &quot;Wish You Were Here&quot; (Official Video)",
+        "PinkFloydVEVO",
+      ),
+      { artist: "Pink Floyd", title: "Wish You Were Here" },
+    )
+    assert.equal(
+      stripTitleQuotes('"See You On The Other Side"'),
+      "See You On The Other Side",
+    )
+    assert.equal(stripTitleQuotes("Don't Stop"), "Don't Stop")
+  })
+
+  it("drops an upload parenthetical and a broken Official leftover", () => {
+    assert.equal(
+      cleanVideoTitle("The Outside (Official Lyric Video)"),
+      "The Outside",
+    )
+    assert.equal(cleanVideoTitle("The Outside (Official)"), "The Outside")
+    assert.equal(cleanVideoTitle("The Outside (Official"), "The Outside")
+    assert.equal(
+      cleanVideoTitle("Somebody That I Used to Know (feat. Kimbra)"),
+      "Somebody That I Used to Know (feat. Kimbra)",
+    )
+    const [fixed] = repairHtmlEntities([
+      { title: "The Outside (Official", artist: "Phoebe Bridgers" },
+    ])
+    assert.equal(fixed?.title, "The Outside")
+    assert.equal(fixed?.artist, "Phoebe Bridgers")
+  })
+
+  it("treats an escaped title as the same song as the decoded one", () => {
+    assert.equal(
+      isSameSong(
+        { title: "&quot;Alive&quot;", artist: "Pearl Jam" },
+        { title: '"Alive"', artist: "Pearl Jam" },
+      ),
+      true,
+    )
+  })
+
+  it("repairs titles already saved in the library", () => {
+    const [fixed] = repairHtmlEntities([
+      {
+        title: "Bohemian Rhapsody &quot;Live&quot;",
+        artist: "Queen &#39;75",
+      },
+    ])
+    assert.equal(fixed?.title, "Bohemian Rhapsody Live")
+    assert.equal(fixed?.artist, "Queen '75")
   })
 })
 
