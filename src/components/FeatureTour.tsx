@@ -1,54 +1,14 @@
 import { useState, useEffect } from "react"
 import { SEED_TRACKS } from "../data/seedTracks"
+import { tourSteps } from "../lib/featureTour"
+import { useVaultStore } from "../store/useVaultStore"
 
 const STORAGE_KEY = "dj-vault-tour-v1"
 
-interface TourStep {
-  title: string
-  description: string
-  icon: string
-}
-
-const TOUR_STEPS: TourStep[] = [
-  {
-    title: `🎵 ${SEED_TRACKS.length} Curated Tracks`,
-    description:
-      "Start with classics from Metallica, Nirvana, Tool, Ghost, and more. Vote tracks up/down to build your favorites.",
-    icon: "🎸",
-  },
-  {
-    title: "🔍 Smart Discovery",
-    description:
-      "Type a name in Search and press Enter to find it on YouTube. Preview before you add — nothing is saved until you want it. Similar knows Tesla → Def Leppard, Nirvana → Pearl Jam, and more!",
-    icon: "✨",
-  },
-  {
-    title: "📻 Radio Mode",
-    description:
-      "Start radio for endless playback. It automatically queues similar tracks, creating a personalized music journey.",
-    icon: "📡",
-  },
-  {
-    title: "💾 Playlists & Dedications",
-    description:
-      "Save playlists with personal dedications (e.g., 'In memory of...'). Everything auto-saves. Use Backup to download a copy.",
-    icon: "💝",
-  },
-  {
-    title: "🎬 Set Mode (Press F)",
-    description:
-      "Fullscreen mode with live audio visualizer. Perfect for parties or remembering someone special through their music.",
-    icon: "🎆",
-  },
-  {
-    title: "🌐 Share Anywhere",
-    description:
-      "Every playlist gets a share link. Friends can play it instantly without signing up. Your music, their browser, that simple.",
-    icon: "🔗",
-  },
-]
-
 export function FeatureTour() {
+  const publishedSeeds = useVaultStore((s) => s.publishedSeeds)
+  const seedCount = (publishedSeeds ?? SEED_TRACKS).length
+  const steps = tourSteps(seedCount)
   const [visible, setVisible] = useState(false)
   const [step, setStep] = useState(0)
 
@@ -74,7 +34,7 @@ export function FeatureTour() {
   }
 
   function next() {
-    if (step < TOUR_STEPS.length - 1) {
+    if (step < steps.length - 1) {
       setStep(step + 1)
     } else {
       complete()
@@ -91,7 +51,7 @@ export function FeatureTour() {
 
   if (!visible) return null
 
-  const current = TOUR_STEPS[step]
+  const current = steps[step]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -109,7 +69,7 @@ export function FeatureTour() {
                 Feature Tour
               </p>
               <p className="mt-0.5 text-[10px] text-vault-muted">
-                {step + 1} of {TOUR_STEPS.length}
+                {step + 1} of {steps.length}
               </p>
             </div>
             <button
@@ -144,7 +104,7 @@ export function FeatureTour() {
             </button>
 
             <div className="flex gap-1.5">
-              {TOUR_STEPS.map((_, i) => (
+              {steps.map((_, i) => (
                 <div
                   key={i}
                   className={`h-1.5 w-8 rounded-full transition ${
@@ -163,7 +123,7 @@ export function FeatureTour() {
               onClick={next}
               className="rounded-lg bg-vault-amber px-4 py-2 text-sm font-medium text-stone-950 hover:bg-amber-400"
             >
-              {step === TOUR_STEPS.length - 1 ? "Get Started" : "Next →"}
+              {step === steps.length - 1 ? "Get Started" : "Next →"}
             </button>
           </div>
         </div>
