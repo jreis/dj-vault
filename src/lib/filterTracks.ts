@@ -60,6 +60,26 @@ export function filterAndSortTracks(tracks: Track[], filters: Filters): Track[] 
   return result
 }
 
+/**
+ * Vote ranking, in the same order as the track list on the default
+ * score-descending sort. Tied scores stay in that list order, so the
+ * first row is the one to select.
+ */
+export function rankTracksByScore(tracks: Track[]): Track[] {
+  return filterAndSortTracks(tracks, {
+    query: "",
+    genre: "All",
+    era: "All",
+    sortKey: "score",
+    sortDir: "desc",
+  })
+}
+
+/** Track id that leads the vote ranking (first row when scores tie). */
+export function highestVotedTrackId(tracks: Track[]): string | null {
+  return rankTracksByScore(tracks)[0]?.id ?? null
+}
+
 /** Genre counts for the current search + era (genre chip bar). */
 export function genreCounts(
   tracks: Track[],

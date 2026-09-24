@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { SEED_TRACKS } from "../data/seedTracks"
+import { rankTracksByScore } from "../lib/filterTracks"
 import { useVaultStore } from "../store/useVaultStore"
 
 const STORAGE_KEY = "dj-vault-welcome-v1"
@@ -33,8 +34,7 @@ export function WelcomeBanner({ onOpenShortcuts }: WelcomeBannerProps) {
   }
 
   function playDemoSet() {
-    const top = [...tracks]
-      .sort((a, b) => b.score - a.score)
+    const top = rankTracksByScore(tracks)
       .slice(0, 5)
       .map((t) => t.id)
     // playSet opens Set Mode for multi-track sets automatically.

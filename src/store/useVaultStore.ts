@@ -23,6 +23,7 @@ import {
   songIdentity,
   uniqueSongs,
 } from "../lib/youtubeDiscover.ts"
+import { highestVotedTrackId, rankTracksByScore } from "../lib/filterTracks"
 import type { Filters, Genre, Playlist, Track } from "../types"
 
 /** YouTube discovery result ready to become a guest (or existing) vault track. */
@@ -295,18 +296,7 @@ export function selectPlaybackTracks(s: {
   return [...byId.values()]
 }
 
-/** Track id with the highest vote score (title as tie-break). */
-export function highestVotedTrackId(tracks: Track[]): string | null {
-  if (tracks.length === 0) return null
-  let best = tracks[0]!
-  for (const t of tracks) {
-    if (t.score > best.score) best = t
-    else if (t.score === best.score && t.title.localeCompare(best.title) < 0) {
-      best = t
-    }
-  }
-  return best.id
-}
+export { highestVotedTrackId }
 
 function currentSetIds(s: {
   nowPlayingId: string | null
@@ -1168,7 +1158,7 @@ export const useVaultStore = create<VaultState>()(
           })
           return
         }
-        const sorted = [...tracks].sort((a, b) => b.score - a.score)
+        const sorted = rankTracksByScore(tracks)
         if (!nowPlayingId) {
           if (sorted[0])
             set({
@@ -1193,7 +1183,7 @@ export const useVaultStore = create<VaultState>()(
       playPrev: () => {
         const { nowPlayingId, previewTrack } = get()
         const tracks = selectPlaybackTracks(get())
-        const sorted = [...tracks].sort((a, b) => b.score - a.score)
+        const sorted = rankTracksByScore(tracks)
         if (!nowPlayingId) {
           if (sorted[0])
             set({

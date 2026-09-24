@@ -3,6 +3,7 @@ import {
   selectPlaybackTracks,
   useVaultStore,
 } from "../store/useVaultStore"
+import { rankTracksByScore } from "../lib/filterTracks"
 import {
   formatStartTime,
   youtubeThumbUrl,
@@ -396,8 +397,7 @@ export function Player() {
   }, [unavailable, queue.length, findingAlternate, trackTitle])
 
   function startTopSet() {
-    const top = [...tracks]
-      .sort((a, b) => b.score - a.score)
+    const top = rankTracksByScore(tracks)
       .slice(0, 5)
       .map((t) => t.id)
     if (top.length) playSet(top)

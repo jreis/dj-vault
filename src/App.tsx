@@ -137,7 +137,8 @@ export default function App() {
   }, [artistExperience])
 
   // After load (and when filters hide the current row), select the
-  // highest-voted track in the visible list. Default sort is score desc.
+  // highest-voted track. Ties follow the score-desc track list, so the
+  // first of two rank-1 rows stays selected.
   useEffect(() => {
     if (!hydrated || visibleIds.length === 0) return
     const sel = useVaultStore.getState().selectedId

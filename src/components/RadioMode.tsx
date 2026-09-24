@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { highestVotedTrackId } from "../lib/filterTracks"
 import {
   selectPlaybackTracks,
   useVaultStore,
@@ -47,9 +48,8 @@ export function RadioMode() {
       const selected = playbackTracks.find((t) => t.id === selectedId)
       if (selected) return selected
     }
-    return (
-      [...playbackTracks].sort((a, b) => b.score - a.score)[0] ?? null
-    )
+    const topId = highestVotedTrackId(playbackTracks)
+    return playbackTracks.find((t) => t.id === topId) ?? null
   }, [nowPlayingId, selectedId, playbackTracks])
 
   const [radioActive, setRadioActive] = useState(false)
