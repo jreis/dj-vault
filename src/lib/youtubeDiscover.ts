@@ -165,17 +165,28 @@ const UPLOAD_NOISE = new Set([
   "visualizer",
   "visualiser",
   "topic",
+  "original",
+  "studio",
+  "recording",
 ])
+
+/** A 4-digit release year inside an upload note, e.g. 1984 in [Original 1984 Studio Recording]. */
+function isUploadYear(word: string): boolean {
+  return /^(19|20)\d{2}$/.test(word)
+}
 
 /** True when a parenthetical is upload metadata, not part of the song name. */
 function isUploadNoise(inner: string): boolean {
   const words = inner.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
-  return words.length > 0 && words.every((word) => UPLOAD_NOISE.has(word))
+  return (
+    words.length > 0 &&
+    words.every((word) => UPLOAD_NOISE.has(word) || isUploadYear(word))
+  )
 }
 
 /**
- * Drop (Official Lyric Video), [Official Audio], and a broken leftover
- * like "(Official" when the closing half was already removed.
+ * Drop (Official Lyric Video), [Official Audio], [Original 1984 Studio Recording],
+ * and a broken leftover like "(Official" when the closing half was already removed.
  * (feat. Kimbra) and (Live) stay.
  */
 function stripUploadNoise(raw: string): string {

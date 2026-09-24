@@ -101,6 +101,15 @@ describe("html entities in titles", () => {
       cleanVideoTitle("Somebody That I Used to Know (feat. Kimbra)"),
       "Somebody That I Used to Know (feat. Kimbra)",
     )
+    assert.equal(cleanVideoTitle("Fade to Black (Live)"), "Fade to Black (Live)")
+    assert.equal(
+      cleanVideoTitle("Fade to Black [Original 1984 Studio Recording]"),
+      "Fade to Black",
+    )
+    assert.equal(
+      cleanVideoTitle("Fade to Black (Original 1984 Studio Recording)"),
+      "Fade to Black",
+    )
     const [fixed] = repairHtmlEntities([
       { title: "The Outside (Official", artist: "Phoebe Bridgers" },
     ])
