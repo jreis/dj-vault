@@ -16,7 +16,10 @@ import {
   youtubeErrorMessage,
   type YtPlayer,
 } from "../lib/youtubeApi"
-import { fetchEmbedAlternate } from "../lib/youtubeDiscover"
+import {
+  fetchEmbedAlternate,
+  isMisassignedRickroll,
+} from "../lib/youtubeDiscover"
 import {
   bindMediaSession,
   syncScreenWakeLock,
@@ -46,6 +49,7 @@ export function Player() {
   const queue = useVaultStore((s) => s.queue)
   const playNext = useVaultStore((s) => s.playNext)
   const playPrev = useVaultStore((s) => s.playPrev)
+  const togglePlayback = useVaultStore((s) => s.togglePlayback)
   const stop = useVaultStore((s) => s.stop)
   const dequeue = useVaultStore((s) => s.dequeue)
   const clearQueue = useVaultStore((s) => s.clearQueue)
@@ -169,6 +173,57 @@ export function Player() {
       scheduleSkip()
     }
 
+    const lookForAlternate = (reason: string) => {
+      embedTriesRef.current.ids.add(videoId)
+      if (embedTriesRef.current.ids.size >= MAX_EMBED_TRIES) {
+        giveUp(reason)
+        return
+      }
+      setUnavailable(reason)
+      setFindingAlternate(true)
+      void fetchEmbedAlternate(
+        { title: trackTitle, artist: trackArtist, youtubeId: videoId },
+        embedTriesRef.current.ids,
+        ac.signal,
+      )
+        .then((alt) => {
+          if (cancelled || wiredTrackIdRef.current !== trackId) return
+          if (alt) {
+            embedTriesRef.current.ids.add(alt.youtubeId)
+            replaceYoutubeId(trackId, alt.youtubeId)
+            showToast(
+              `Playing another version of “${trackTitle}”`,
+              "info",
+            )
+            return
+          }
+          giveUp(reason)
+        })
+        .catch(() => {
+          if (cancelled || ac.signal.aborted) return
+          giveUp(reason)
+        })
+    }
+
+    // Never start the rickroll upload for a different song.
+    if (
+      isMisassignedRickroll({
+        title: trackTitle,
+        artist: trackArtist,
+        youtubeId: videoId,
+      })
+    ) {
+      lookForAlternate("Couldn't find the right video for this song.")
+      return () => {
+        cancelled = true
+        ac.abort()
+        if (skipTimer) clearTimeout(skipTimer)
+        setActiveYtPlayer(null)
+        playerRef.current?.destroy()
+        playerRef.current = null
+      }
+    }
+
     createYouTubePlayer({
       element: mount,
       videoId,
@@ -206,36 +261,7 @@ export function Player() {
       },
       onError: (code) => {
         if (cancelled || wiredTrackIdRef.current !== trackId) return
-        const reason = youtubeErrorMessage(code)
-        embedTriesRef.current.ids.add(videoId)
-        if (embedTriesRef.current.ids.size >= MAX_EMBED_TRIES) {
-          giveUp(reason)
-          return
-        }
-        setUnavailable(reason)
-        setFindingAlternate(true)
-        void fetchEmbedAlternate(
-          { title: trackTitle, artist: trackArtist, youtubeId: videoId },
-          embedTriesRef.current.ids,
-          ac.signal,
-        )
-          .then((alt) => {
-            if (cancelled || wiredTrackIdRef.current !== trackId) return
-            if (alt) {
-              embedTriesRef.current.ids.add(alt.youtubeId)
-              replaceYoutubeId(trackId, alt.youtubeId)
-              showToast(
-                `Playing another version of “${trackTitle}”`,
-                "info",
-              )
-              return
-            }
-            giveUp(reason)
-          })
-          .catch(() => {
-            if (cancelled || ac.signal.aborted) return
-            giveUp(reason)
-          })
+        lookForAlternate(youtubeErrorMessage(code))
       },
     })
       .then((player) => {
@@ -678,6 +704,35 @@ export function Player() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => togglePlayback()}
+                    aria-keyshortcuts="Space"
+                    aria-label={isPlaying ? "Pause" : "Play"}
+                    title={isPlaying ? "Pause (Space)" : "Play (Space)"}
+                    className={
+                      isPlaying
+                        ? setMode
+                          ? "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-stone-300 hover:text-white"
+                          : "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-vault-border bg-vault-elevated px-3 py-1.5 text-xs font-medium text-vault-text hover:border-vault-amber"
+                        : setMode
+                          ? "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-amber-500 bg-amber-500 px-3 py-1.5 text-xs font-medium text-stone-950 hover:bg-amber-400"
+                          : "inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-vault-amber px-3 py-1.5 text-xs font-medium text-stone-950 hover:bg-amber-400"
+                    }
+                  >
+                    {isPlaying ? "Pause" : "Play"}
+                    <kbd
+                      className={
+                        isPlaying
+                          ? setMode
+                            ? "hidden rounded border border-white/15 px-1 font-mono text-[10px] text-stone-400 sm:inline"
+                            : "hidden rounded border border-vault-border px-1 font-mono text-[10px] text-vault-muted sm:inline"
+                          : "hidden rounded border border-stone-950/25 bg-stone-950/10 px-1 font-mono text-[10px] sm:inline"
+                      }
+                    >
+                      Space
+                    </kbd>
+                  </button>
+                  <button
+                    type="button"
                     onClick={playNext}
                     className={
                       setMode
@@ -780,7 +835,7 @@ export function Player() {
                   </button>
                 </div>
 
-                {queueTracks.length > 0 && !unavailable && (
+                {!unavailable && (
                   <p
                     className={
                       setMode
@@ -788,21 +843,33 @@ export function Player() {
                         : "text-[11px] text-vault-muted/80"
                     }
                   >
-                    {setMode ? (
-                      <>
-                        Auto-advances through the queue ·{" "}
-                        <kbd className="rounded border border-white/10 px-1 font-mono text-stone-400">
-                          n
-                        </kbd>
-                        /
-                        <kbd className="rounded border border-white/10 px-1 font-mono text-stone-400">
-                          p
-                        </kbd>{" "}
-                        next/prev
-                      </>
-                    ) : (
-                      "Auto-advances through the queue when a track ends (or is unavailable)."
-                    )}
+                    <kbd
+                      className={
+                        setMode
+                          ? "rounded border border-white/10 px-1 font-mono text-stone-400"
+                          : "rounded border border-vault-border px-1 font-mono"
+                      }
+                    >
+                      Space
+                    </kbd>{" "}
+                    play / pause
+                    {queueTracks.length > 0 &&
+                      (setMode ? (
+                        <>
+                          {" "}
+                          · auto-advances ·{" "}
+                          <kbd className="rounded border border-white/10 px-1 font-mono text-stone-400">
+                            n
+                          </kbd>
+                          /
+                          <kbd className="rounded border border-white/10 px-1 font-mono text-stone-400">
+                            p
+                          </kbd>{" "}
+                          next/prev
+                        </>
+                      ) : (
+                        " · auto-advances when a track ends (or is unavailable)."
+                      ))}
                   </p>
                 )}
                 {!unavailable && (
@@ -856,17 +923,28 @@ export function Player() {
                       : "max-w-[16rem] text-xs leading-relaxed text-vault-muted/80"
                   }
                 >
-                  {setMode
-                    ? "Start a multi-track set from the vault, or queue tracks and hit play."
-                    : (
-                      <>
-                        Select a track and press{" "}
-                        <kbd className="rounded border border-vault-border px-1 font-mono">
-                          Enter
-                        </kbd>
-                        , double-click a row, or start a set below.
-                      </>
-                    )}
+                  {setMode ? (
+                    <>
+                      Start a multi-track set from the vault, or press{" "}
+                      <kbd className="rounded border border-white/15 bg-white/5 px-1.5 py-0.5 font-mono text-stone-300">
+                        Space
+                      </kbd>{" "}
+                      to play and pause.
+                    </>
+                  ) : (
+                    <>
+                      Select a track and press{" "}
+                      <kbd className="rounded border border-vault-border px-1 font-mono">
+                        Enter
+                      </kbd>{" "}
+                      to play it.{" "}
+                      <kbd className="rounded border border-vault-border px-1 font-mono">
+                        Space
+                      </kbd>{" "}
+                      plays and pauses. Double-click a row, or start a set
+                      below.
+                    </>
+                  )}
                 </p>
               </div>
               <div className="mt-2 flex flex-wrap justify-center gap-2">

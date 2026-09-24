@@ -243,6 +243,89 @@ export function videoLooksLikeSong(
   return hay.includes(title) && hay.includes(artist)
 }
 
+/** Canonical Never Gonna Give You Up upload. It only belongs on that song. */
+export const RICKROLL_YOUTUBE_ID = "dQw4w9WgXcQ"
+
+/**
+ * Real videos for songs that were saved on the rickroll upload.
+ * Keyed loosely via songIdentity so quotes and capitalization still match.
+ */
+const RICKROLL_REPLACEMENTS: Array<{
+  title: string
+  artist: string
+  youtubeId: string
+}> = [
+  {
+    title: "The Outside",
+    artist: "Phoebe Bridgers",
+    youtubeId: "MwONYYlnBiM",
+  },
+  {
+    title: "See You On The Other Side",
+    artist: "Ozzy Osbourne",
+    youtubeId: "-9yYJ6ZAYns",
+  },
+  {
+    title: "Somebody That I Used to Know (feat. Kimbra)",
+    artist: "Gotye",
+    youtubeId: "8UVNT4wvIGY",
+  },
+  {
+    title: "Don't Stop",
+    artist: "Fleetwood Mac",
+    youtubeId: "QV9JJmSCiI8",
+  },
+]
+
+export function isNeverGonnaGiveYouUp(song: {
+  title: string
+  artist: string
+}): boolean {
+  const title = normSongText(cleanVideoTitle(song.title))
+  if (title !== "never gonna give you up") return false
+  const artist = normSongText(song.artist)
+  return artist.length === 0 || artist.includes("astley")
+}
+
+/** True when this upload is the rickroll and the track is a different song. */
+export function isMisassignedRickroll(track: {
+  title: string
+  artist: string
+  youtubeId: string
+}): boolean {
+  return (
+    track.youtubeId === RICKROLL_YOUTUBE_ID && !isNeverGonnaGiveYouUp(track)
+  )
+}
+
+/**
+ * Point songs that were saved on the rickroll upload at their own videos.
+ * A track that actually is Never Gonna Give You Up keeps that upload.
+ * Later references win over the built-in list, except a reference that is
+ * itself the rickroll upload.
+ */
+export function repairMisassignedRickrolls<
+  T extends { title: string; artist: string; youtubeId: string },
+>(
+  tracks: T[],
+  references: Array<{ title: string; artist: string; youtubeId: string }> = [],
+): T[] {
+  const bySong = new Map<string, string>()
+  for (const ref of [...RICKROLL_REPLACEMENTS, ...references]) {
+    if (!ref.youtubeId || ref.youtubeId === RICKROLL_YOUTUBE_ID) continue
+    bySong.set(songIdentity(ref.title, ref.artist), ref.youtubeId)
+  }
+  let changed = false
+  const next = tracks.map((track) => {
+    if (!isMisassignedRickroll(track)) return track
+    const fixed = bySong.get(songIdentity(track.title, track.artist))
+    if (!fixed || fixed === track.youtubeId) return track
+    changed = true
+    return { ...track, youtubeId: fixed }
+  })
+  return changed ? next : tracks
+}
+
 /**
  * First search hit that is the same song and not an already-failed upload.
  * Used when the chosen video can't embed — keep the song, swap the video.
@@ -256,6 +339,15 @@ export function pickAlternateVideo(
   blocked.add(seed.youtubeId)
   for (const video of items) {
     if (blocked.has(video.youtubeId)) continue
+    if (
+      isMisassignedRickroll({
+        title: seed.title,
+        artist: seed.artist,
+        youtubeId: video.youtubeId,
+      })
+    ) {
+      continue
+    }
     if (videoLooksLikeSong(seed, video)) return video
   }
   return null

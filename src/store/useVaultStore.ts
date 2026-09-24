@@ -17,7 +17,9 @@ import { clipKey } from "../lib/youtube"
 import {
   cleanVideoTitle,
   decodeHtmlEntities,
+  isMisassignedRickroll,
   repairHtmlEntities,
+  repairMisassignedRickrolls,
   songIdentity,
   uniqueSongs,
 } from "../lib/youtubeDiscover.ts"
@@ -40,6 +42,21 @@ function uid(prefix = "t"): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
 
+/** Dead ids, rickroll uploads on the wrong song, titles, then BPM. */
+function healTracks(
+  tracks: Track[],
+  references: Array<{ title: string; artist: string; youtubeId: string }> = [],
+): Track[] {
+  return ensureTrackBPMs(
+    repairHtmlEntities(
+      repairMisassignedRickrolls(repairDeadYoutubeIds(tracks), [
+        ...SEED_TRACKS,
+        ...references,
+      ]),
+    ),
+  )
+}
+
 function trackFromInput(input: DiscoveredTrackInput, id?: string): Track {
   const title = cleanVideoTitle(input.title)
   const artist = decodeHtmlEntities(input.artist).trim()
@@ -60,7 +77,8 @@ function trackFromInput(input: DiscoveredTrackInput, id?: string): Track {
     notes,
     addedAt,
   }
-  return { ...draft, bpm: estimateBPM(draft) }
+  const [healed] = healTracks([draft])
+  return healed ?? { ...draft, bpm: estimateBPM(draft) }
 }
 
 /** Drop a leftover preview once now-playing has moved on. */
@@ -438,6 +456,17 @@ export const useVaultStore = create<VaultState>()(
       replaceYoutubeId: (id, youtubeId) => {
         const next = youtubeId.trim()
         if (!next) return
+        const current = get().resolveTrack(id)
+        if (
+          current &&
+          isMisassignedRickroll({
+            title: current.title,
+            artist: current.artist,
+            youtubeId: next,
+          })
+        ) {
+          return
+        }
         set((s) => {
           const patch = (t: Track) =>
             t.id === id ? { ...t, youtubeId: next } : t
@@ -497,9 +526,7 @@ export const useVaultStore = create<VaultState>()(
           set({ awaitingPublishedSeeds: false })
           return
         }
-        const seedTracks = ensureTrackBPMs(
-          repairHtmlEntities(repairDeadYoutubeIds(catalog.tracks)),
-        )
+        const seedTracks = healTracks(catalog.tracks)
         const seedTrackIds = new Set(seedTracks.map((t) => t.id))
         const publishedPlaylists =
           catalog.playlists == null
@@ -513,29 +540,33 @@ export const useVaultStore = create<VaultState>()(
             s.playlists,
             publishedPlaylists,
           )
+          const tracks = s.awaitingPublishedSeeds
+            ? seedTracks
+            : healTracks(s.tracks, seedTracks)
           if (s.awaitingPublishedSeeds) {
             return {
               publishedSeeds: seedTracks,
               publishedPlaylists: publishedPlaylists ?? SEED_PLAYLISTS,
               awaitingPublishedSeeds: false,
-              tracks: seedTracks,
+              tracks,
               playlists: publishedPlaylists ?? SEED_PLAYLISTS,
               selectedId: highestVotedTrackId(seedTracks) ?? s.selectedId,
             }
           }
-          // Keep the user's localStorage library. New catalog tracks are
-          // only applied on first visit or via Reset seed.
+          // Keep the user's library. Published videos replace a saved upload
+          // only when that upload is the rickroll video on the wrong song.
           return {
             publishedSeeds: seedTracks,
             publishedPlaylists: publishedPlaylists ?? s.publishedPlaylists,
             awaitingPublishedSeeds: false,
+            tracks,
             playlists,
           }
         })
       },
 
       importTracks: (tracks, mode) => {
-        const tracksWithBPM = ensureTrackBPMs(repairHtmlEntities(tracks))
+        const tracksWithBPM = healTracks(tracks)
         if (mode === "replace") {
           const trackIds = new Set(tracksWithBPM.map((t) => t.id))
           set((s) => ({
@@ -570,7 +601,7 @@ export const useVaultStore = create<VaultState>()(
 
       loadGuestSet: (tracks, name) => {
         if (tracks.length === 0) return
-        const tracksWithBPM = ensureTrackBPMs(repairHtmlEntities(tracks))
+        const tracksWithBPM = healTracks(tracks)
         const ids = tracksWithBPM.map((t) => t.id)
         const [first, ...rest] = ids
         set({
@@ -771,7 +802,7 @@ export const useVaultStore = create<VaultState>()(
               // Import tracks if they don't exist
               const trackIds: string[] = []
               if (pl.tracks && Array.isArray(pl.tracks)) {
-                for (const track of pl.tracks) {
+                for (const track of healTracks(pl.tracks)) {
                   const existing = s.tracks.find(
                     (t) => t.youtubeId === track.youtubeId,
                   )
@@ -1264,15 +1295,18 @@ export const useVaultStore = create<VaultState>()(
         darkMode: s.darkMode,
         filters: s.filters,
       }),
+      version: 1,
+      migrate: (persisted) => {
+        if (!persisted || typeof persisted !== "object") return persisted as never
+        const saved = persisted as { tracks?: Track[] }
+        if (!Array.isArray(saved.tracks)) return persisted as never
+        return { ...saved, tracks: healTracks(saved.tracks) }
+      },
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<VaultState>
         const tracksPersisted = Array.isArray(p.tracks)
         const rawTracks = tracksPersisted ? p.tracks! : current.tracks
-        const tracks = ensureTrackBPMs(
-          repairHtmlEntities(
-            tracksPersisted ? repairDeadYoutubeIds(rawTracks) : rawTracks,
-          ),
-        )
+        const tracks = healTracks(rawTracks)
 
         const trackIds = new Set(tracks.map((t) => t.id))
         const topVoted = highestVotedTrackId(tracks)

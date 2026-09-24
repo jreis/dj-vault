@@ -5,8 +5,11 @@ import {
   decodeHtmlEntities,
   guessTitleArtist,
   isSameSong,
+  isMisassignedRickroll,
   pickAlternateVideo,
   repairHtmlEntities,
+  repairMisassignedRickrolls,
+  RICKROLL_YOUTUBE_ID,
   stripTitleQuotes,
   youtubeSearchFromEnter,
   type DiscoverVideo,
@@ -139,6 +142,81 @@ describe("html entities in titles", () => {
   })
 })
 
+describe("repairMisassignedRickrolls", () => {
+  it("points songs that were saved on the rickroll upload at their own videos", () => {
+    const [outside, ozzy, gotye, fleetwood] = repairMisassignedRickrolls([
+      {
+        title: "The Outside",
+        artist: "Phoebe Bridgers",
+        youtubeId: RICKROLL_YOUTUBE_ID,
+      },
+      {
+        title: '"See You On The Other Side"',
+        artist: "OZZY OSBOURNE",
+        youtubeId: RICKROLL_YOUTUBE_ID,
+      },
+      {
+        title: "Somebody That I Used to Know (feat. Kimbra)",
+        artist: "Gotye",
+        youtubeId: RICKROLL_YOUTUBE_ID,
+      },
+      {
+        title: "Don’t Stop",
+        artist: "Fleetwood Mac",
+        youtubeId: RICKROLL_YOUTUBE_ID,
+      },
+    ])
+    assert.equal(outside?.youtubeId, "MwONYYlnBiM")
+    assert.equal(ozzy?.youtubeId, "-9yYJ6ZAYns")
+    assert.equal(gotye?.youtubeId, "8UVNT4wvIGY")
+    assert.equal(fleetwood?.youtubeId, "QV9JJmSCiI8")
+  })
+
+  it("leaves Never Gonna Give You Up on that upload", () => {
+    const original = [
+      {
+        title: "Never Gonna Give You Up",
+        artist: "Rick Astley",
+        youtubeId: RICKROLL_YOUTUBE_ID,
+      },
+    ]
+    const next = repairMisassignedRickrolls(original)
+    assert.equal(next, original)
+    assert.equal(isMisassignedRickroll(original[0]!), false)
+  })
+
+  it("leaves other videos alone", () => {
+    const original = [
+      {
+        title: "The Outside",
+        artist: "Phoebe Bridgers",
+        youtubeId: "MwONYYlnBiM",
+      },
+    ]
+    assert.equal(repairMisassignedRickrolls(original), original)
+  })
+
+  it("prefers a later reference video over the built-in one", () => {
+    const [track] = repairMisassignedRickrolls(
+      [
+        {
+          title: "The Outside",
+          artist: "Phoebe Bridgers",
+          youtubeId: RICKROLL_YOUTUBE_ID,
+        },
+      ],
+      [
+        {
+          title: "The Outside",
+          artist: "Phoebe Bridgers",
+          youtubeId: "catalog-id-1",
+        },
+      ],
+    )
+    assert.equal(track?.youtubeId, "catalog-id-1")
+  })
+})
+
 describe("pickAlternateVideo", () => {
   const alive = {
     title: "Alive",
@@ -174,6 +252,22 @@ describe("pickAlternateVideo", () => {
       }),
     ])
     assert.equal(alt?.youtubeId, "nL3RLO1-oQI")
+  })
+
+  it("does not swap in the rickroll upload for a different song", () => {
+    const alt = pickAlternateVideo(alive, [
+      video({
+        youtubeId: RICKROLL_YOUTUBE_ID,
+        title: "Pearl Jam - Alive (Official Video)",
+        channelTitle: "PearljamVEVO",
+      }),
+      video({
+        youtubeId: "qM0zINtulhM",
+        title: "Pearl Jam - Alive (Official Video)",
+        channelTitle: "PearljamVEVO",
+      }),
+    ])
+    assert.equal(alt?.youtubeId, "qM0zINtulhM")
   })
 
   it("returns null when every Alive upload has already failed", () => {

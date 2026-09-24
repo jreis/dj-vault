@@ -333,6 +333,10 @@ export function Toolbar() {
           </kbd>{" "}
           play ·{" "}
           <kbd className="rounded border border-vault-border px-1 font-mono">
+            Space
+          </kbd>{" "}
+          play/pause ·{" "}
+          <kbd className="rounded border border-vault-border px-1 font-mono">
             q
           </kbd>{" "}
           queue ·{" "}
