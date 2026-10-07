@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { Track } from "../types"
 import { SEED_TRACKS } from "../data/seedTracks"
+import { findPlayableTrack } from "../lib/playlistPlayback"
 import { clearShareHash } from "../lib/shareLink"
 import { createShareLink } from "../lib/shareApi"
 import { consumeCuratorUnlock, shouldShowSeedPublisher } from "../lib/curator"
@@ -10,13 +11,19 @@ import { useToastStore } from "../store/useToastStore"
 
 function resolveSetTracks(s: {
   tracks: Track[]
+  heldTracks: Track[]
+  seeds: Track[]
   guestTracks: Track[]
   nowPlayingId: string | null
   queue: string[]
 }): Track[] {
   const resolve = (id: string) =>
-    s.tracks.find((t) => t.id === id) ??
-    s.guestTracks.find((t) => t.id === id)
+    findPlayableTrack(id, {
+      library: s.tracks,
+      held: s.heldTracks,
+      seeds: s.seeds,
+      guestTracks: s.guestTracks,
+    })
   const ids = [
     ...(s.nowPlayingId ? [s.nowPlayingId] : []),
     ...s.queue.filter((id) => id !== s.nowPlayingId),
@@ -28,6 +35,8 @@ function resolveSetTracks(s: {
 
 export function Toolbar() {
   const tracks = useVaultStore((s) => s.tracks)
+  const heldTracks = useVaultStore((s) => s.heldTracks)
+  const publishedSeeds = useVaultStore((s) => s.publishedSeeds)
   const playlists = useVaultStore((s) => s.playlists)
   const guestTracks = useVaultStore((s) => s.guestTracks)
   const guestSetName = useVaultStore((s) => s.guestSetName)
@@ -40,7 +49,6 @@ export function Toolbar() {
   const setSeedPublishConfigured = useVaultStore(
     (s) => s.setSeedPublishConfigured,
   )
-  const publishedSeeds = useVaultStore((s) => s.publishedSeeds)
   const seedPublishConfigured = useVaultStore((s) => s.seedPublishConfigured)
   const showToast = useToastStore((s) => s.show)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -76,6 +84,8 @@ export function Toolbar() {
     if (source === "queue") {
       list = resolveSetTracks({
         tracks,
+        heldTracks,
+        seeds: publishedSeeds ?? SEED_TRACKS,
         guestTracks,
         nowPlayingId,
         queue,
@@ -110,6 +120,8 @@ export function Toolbar() {
     if (source === "queue") {
       list = resolveSetTracks({
         tracks,
+        heldTracks,
+        seeds: publishedSeeds ?? SEED_TRACKS,
         guestTracks,
         nowPlayingId,
         queue,

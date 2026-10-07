@@ -24,6 +24,13 @@ import {
   uniqueSongs,
 } from "../lib/youtubeDiscover.ts"
 import { highestVotedTrackId, rankTracksByScore } from "../lib/filterTracks"
+import {
+  findPlayableTrack,
+  holdRemovedTrack,
+  idsPlaylistsCanKeep,
+  releaseUnheldTracks,
+  tracksForPlaylist,
+} from "../lib/playlistPlayback"
 import type { Filters, Genre, Playlist, Track } from "../types"
 
 /** YouTube discovery result ready to become a guest (or existing) vault track. */
@@ -104,6 +111,11 @@ interface VaultState {
   tracks: Track[]
   /** Named sets of library track ids (persisted). */
   playlists: Playlist[]
+  /**
+   * Snapshot of a song a playlist still plays after it left the vault.
+   * Hidden from the library. Persisted.
+   */
+  heldTracks: Track[]
   /**
    * Tracks from a shared link that are not (yet) in the library.
    * Ephemeral — not persisted. Used so open-link can play immediately.
@@ -314,6 +326,7 @@ export const useVaultStore = create<VaultState>()(
     (set, get) => ({
       tracks: SEED_TRACKS,
       playlists: [],
+      heldTracks: [],
       guestTracks: [],
       guestSetName: null,
       previewTrack: null,
@@ -338,11 +351,13 @@ export const useVaultStore = create<VaultState>()(
 
       resolveTrack: (id) => {
         const s = get()
-        return (
-          s.tracks.find((t) => t.id === id) ??
-          s.guestTracks.find((t) => t.id === id) ??
-          (s.previewTrack?.id === id ? s.previewTrack : undefined)
-        )
+        return findPlayableTrack(id, {
+          library: s.tracks,
+          held: s.heldTracks,
+          seeds: s.publishedSeeds ?? SEED_TRACKS,
+          guestTracks: s.guestTracks,
+          previewTrack: s.previewTrack,
+        })
       },
 
       addTrack: (input) => {
@@ -378,17 +393,17 @@ export const useVaultStore = create<VaultState>()(
 
       removeTrack: (id) => {
         set((s) => {
+          const removed = s.tracks.find((t) => t.id === id)
           const tracks = s.tracks.filter((t) => t.id !== id)
-          const trackIds = new Set(tracks.map((t) => t.id))
           return {
             tracks,
+            heldTracks: holdRemovedTrack(s.heldTracks, s.playlists, removed),
             queue: s.queue.filter((q) => q !== id),
             nowPlayingId: s.nowPlayingId === id ? null : s.nowPlayingId,
             isPlaying:
               s.nowPlayingId === id ? false : s.isPlaying,
             selectedId: s.selectedId === id ? null : s.selectedId,
             similarToId: s.similarToId === id ? null : s.similarToId,
-            playlists: prunePlaylistIds(s.playlists, trackIds),
             guestTracks: s.guestTracks.filter((t) => t.id !== id),
           }
         })
@@ -477,6 +492,7 @@ export const useVaultStore = create<VaultState>()(
         set({
           tracks: seeds,
           playlists,
+          heldTracks: [],
           guestTracks: [],
           guestSetName: null,
           previewTrack: null,
@@ -495,6 +511,7 @@ export const useVaultStore = create<VaultState>()(
         set((s) => ({
           tracks: [],
           playlists: prunePlaylistIds(s.playlists, new Set()),
+          heldTracks: [],
           guestTracks: [],
           guestSetName: null,
           previewTrack: null,
@@ -534,12 +551,14 @@ export const useVaultStore = create<VaultState>()(
             ? seedTracks
             : healTracks(s.tracks, seedTracks)
           if (s.awaitingPublishedSeeds) {
+            const nextPlaylists = publishedPlaylists ?? SEED_PLAYLISTS
             return {
               publishedSeeds: seedTracks,
-              publishedPlaylists: publishedPlaylists ?? SEED_PLAYLISTS,
+              publishedPlaylists: nextPlaylists,
               awaitingPublishedSeeds: false,
               tracks,
-              playlists: publishedPlaylists ?? SEED_PLAYLISTS,
+              playlists: nextPlaylists,
+              heldTracks: releaseUnheldTracks(s.heldTracks, nextPlaylists),
               selectedId: highestVotedTrackId(seedTracks) ?? s.selectedId,
             }
           }
@@ -551,6 +570,7 @@ export const useVaultStore = create<VaultState>()(
             awaitingPublishedSeeds: false,
             tracks,
             playlists,
+            heldTracks: releaseUnheldTracks(s.heldTracks, playlists),
           }
         })
       },
@@ -566,6 +586,7 @@ export const useVaultStore = create<VaultState>()(
             isPlaying: false,
             selectedId: highestVotedTrackId(tracksWithBPM),
             playlists: prunePlaylistIds(s.playlists, trackIds),
+            heldTracks: [],
             guestTracks: [],
             guestSetName: null,
             previewTrack: null,
@@ -751,9 +772,13 @@ export const useVaultStore = create<VaultState>()(
       },
 
       deletePlaylist: (id) => {
-        set((s) => ({
-          playlists: s.playlists.filter((p) => p.id !== id),
-        }))
+        set((s) => {
+          const playlists = s.playlists.filter((p) => p.id !== id)
+          return {
+            playlists,
+            heldTracks: releaseUnheldTracks(s.heldTracks, playlists),
+          }
+        })
       },
 
       exportPlaylists: () => {
@@ -763,9 +788,11 @@ export const useVaultStore = create<VaultState>()(
           exportedAt: new Date().toISOString(),
           playlists: s.playlists.map((pl) => ({
             ...pl,
-            tracks: pl.trackIds
-              .map((id) => s.tracks.find((t) => t.id === id))
-              .filter((t): t is Track => Boolean(t)),
+            tracks: tracksForPlaylist(pl.trackIds, {
+              library: s.tracks,
+              held: s.heldTracks,
+              seeds: s.publishedSeeds ?? SEED_TRACKS,
+            }),
           })),
         }
         return JSON.stringify(data, null, 2)
@@ -838,8 +865,8 @@ export const useVaultStore = create<VaultState>()(
       },
 
       updatePlaylistTracks: (id, trackIds) => {
-        set((s) => ({
-          playlists: s.playlists.map((p) =>
+        set((s) => {
+          const playlists = s.playlists.map((p) =>
             p.id === id
               ? {
                   ...p,
@@ -847,8 +874,12 @@ export const useVaultStore = create<VaultState>()(
                   updatedAt: new Date().toISOString(),
                 }
               : p,
-          ),
-        }))
+          )
+          return {
+            playlists,
+            heldTracks: releaseUnheldTracks(s.heldTracks, playlists),
+          }
+        })
       },
 
       addTrackToPlaylist: (playlistId, trackId) => {
@@ -866,13 +897,18 @@ export const useVaultStore = create<VaultState>()(
       },
 
       playPlaylist: (id) => {
-        const p = get().playlists.find((x) => x.id === id)
+        const s = get()
+        const p = s.playlists.find((x) => x.id === id)
         if (!p || p.trackIds.length === 0) return
-        const valid = p.trackIds.filter((tid) =>
-          get().tracks.some((t) => t.id === tid),
-        )
-        if (valid.length === 0) return
-        get().playSet(valid)
+        const playable = tracksForPlaylist(p.trackIds, {
+          library: s.tracks,
+          held: s.heldTracks,
+          seeds: s.publishedSeeds ?? SEED_TRACKS,
+          guestTracks: s.guestTracks,
+          previewTrack: s.previewTrack,
+        })
+        if (playable.length === 0) return
+        get().playSet(playable.map((t) => t.id))
       },
 
       playArtistBestOf: (name, extraVaultIds, discoveries) => {
@@ -1281,6 +1317,7 @@ export const useVaultStore = create<VaultState>()(
       partialize: (s) => ({
         tracks: s.tracks,
         playlists: s.playlists,
+        heldTracks: s.heldTracks,
         queue: s.queue,
         darkMode: s.darkMode,
         filters: s.filters,
@@ -1299,6 +1336,9 @@ export const useVaultStore = create<VaultState>()(
         const tracks = healTracks(rawTracks)
 
         const trackIds = new Set(tracks.map((t) => t.id))
+        const heldTracks = Array.isArray(p.heldTracks)
+          ? healTracks(p.heldTracks)
+          : []
         const topVoted = highestVotedTrackId(tracks)
         const queue = Array.isArray(p.queue)
           ? p.queue.filter((id) => trackIds.has(id) && id !== topVoted)
@@ -1313,7 +1353,7 @@ export const useVaultStore = create<VaultState>()(
                   typeof pl.name === "string" &&
                   Array.isArray(pl.trackIds),
               ),
-              trackIds,
+              idsPlaylistsCanKeep(trackIds, heldTracks, SEED_TRACKS),
             )
           : []
 
@@ -1327,6 +1367,7 @@ export const useVaultStore = create<VaultState>()(
           ...p,
           tracks,
           playlists,
+          heldTracks: releaseUnheldTracks(heldTracks, playlists),
           guestTracks: [],
           guestSetName: null,
           previewTrack: null,

@@ -1,4 +1,6 @@
 import { useState, useRef } from "react"
+import { SEED_TRACKS } from "../data/seedTracks"
+import { tracksForPlaylist } from "../lib/playlistPlayback"
 import { createShareLink } from "../lib/shareApi"
 import { useToastStore } from "../store/useToastStore"
 import { useVaultStore } from "../store/useVaultStore"
@@ -25,6 +27,8 @@ function setTrackList(s: {
 export function PlaylistPanel() {
   const allPlaylists = useVaultStore((s) => s.playlists)
   const tracks = useVaultStore((s) => s.tracks)
+  const heldTracks = useVaultStore((s) => s.heldTracks)
+  const publishedSeeds = useVaultStore((s) => s.publishedSeeds)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const queue = useVaultStore((s) => s.queue)
   const guestTracks = useVaultStore((s) => s.guestTracks)
@@ -49,6 +53,15 @@ export function PlaylistPanel() {
   const [editingDescId, setEditingDescId] = useState<string | null>(null)
   const [descEditDraft, setDescEditDraft] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  function tracksOnPlaylist(pl: Playlist): Track[] {
+    return tracksForPlaylist(pl.trackIds, {
+      library: tracks,
+      held: heldTracks,
+      seeds: publishedSeeds ?? SEED_TRACKS,
+      guestTracks,
+    })
+  }
 
   const currentSet = setTrackList({
     tracks,
@@ -77,9 +90,7 @@ export function PlaylistPanel() {
   }
 
   async function sharePlaylist(pl: Playlist) {
-    const list = pl.trackIds
-      .map((id) => tracks.find((t) => t.id === id))
-      .filter((t): t is Track => Boolean(t))
+    const list = tracksOnPlaylist(pl)
     if (list.length === 0) {
       showToast("Playlist has no tracks left in the library.", "error")
       return
@@ -254,9 +265,7 @@ export function PlaylistPanel() {
             </h3>
             <ul className="space-y-2">
               {curatedPlaylists.map((pl) => {
-                const count = pl.trackIds.filter((id) =>
-                  tracks.some((t) => t.id === id),
-                ).length
+                const count = tracksOnPlaylist(pl).length
                 return (
                   <li
                     key={pl.id}
@@ -340,9 +349,7 @@ export function PlaylistPanel() {
         ) : (
           <ul className="space-y-2">
             {playlists.map((pl) => {
-              const count = pl.trackIds.filter((id) =>
-                tracks.some((t) => t.id === id),
-              ).length
+              const count = tracksOnPlaylist(pl).length
               const renaming = renamingId === pl.id
               const editingDesc = editingDescId === pl.id
               const createdDate = new Date(pl.createdAt).toLocaleDateString()

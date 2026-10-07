@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import {
-  selectPlaybackTracks,
-  useVaultStore,
-} from "../store/useVaultStore"
+import { SEED_TRACKS } from "../data/seedTracks"
+import { findPlayableTrack } from "../lib/playlistPlayback"
+import { useVaultStore } from "../store/useVaultStore"
 import { rankTracksByScore } from "../lib/filterTracks"
 import {
   formatStartTime,
@@ -42,6 +41,8 @@ const MAX_EMBED_TRIES = 3
 
 export function Player() {
   const tracks = useVaultStore((s) => s.tracks)
+  const heldTracks = useVaultStore((s) => s.heldTracks)
+  const publishedSeeds = useVaultStore((s) => s.publishedSeeds)
   const guestTracks = useVaultStore((s) => s.guestTracks)
   const previewTrack = useVaultStore((s) => s.previewTrack)
   const addPreviewToVault = useVaultStore((s) => s.addPreviewToVault)
@@ -65,11 +66,14 @@ export function Player() {
   const replaceYoutubeId = useVaultStore((s) => s.replaceYoutubeId)
   const showToast = useToastStore((s) => s.show)
 
-  const playbackTracks = useMemo(
-    () => selectPlaybackTracks({ tracks, guestTracks, previewTrack }),
-    [tracks, guestTracks, previewTrack],
-  )
-  const resolve = (id: string) => playbackTracks.find((t) => t.id === id)
+  const resolve = (id: string) =>
+    findPlayableTrack(id, {
+      library: tracks,
+      held: heldTracks,
+      seeds: publishedSeeds ?? SEED_TRACKS,
+      guestTracks,
+      previewTrack,
+    })
 
   const current = nowPlayingId ? resolve(nowPlayingId) : undefined
   const isPreview = Boolean(
