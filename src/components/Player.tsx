@@ -491,13 +491,13 @@ export function Player() {
           className={
             setMode
               ? "flex min-w-0 flex-1 flex-col gap-4"
-              : "overflow-hidden rounded-xl border border-vault-border bg-vault-surface shadow-lg"
+              : "min-w-0 max-w-full overflow-hidden rounded-xl border border-vault-border bg-vault-surface shadow-lg"
           }
         >
           {!setMode && (
-            <div className="flex items-center justify-between border-b border-vault-border px-4 py-2.5">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-vault-muted">
+            <div className="flex min-w-0 items-center justify-between gap-2 border-b border-vault-border px-4 py-2.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <h2 className="truncate text-xs font-semibold uppercase tracking-wide text-vault-muted">
                   Now playing
                 </h2>
                 {isPreview && (
@@ -606,8 +606,8 @@ export function Player() {
                   <p
                     className={
                       setMode
-                        ? "text-2xl font-semibold tracking-tight text-white sm:text-3xl"
-                        : "font-semibold text-vault-text"
+                        ? "text-2xl font-semibold tracking-tight wrap-anywhere text-white sm:text-3xl"
+                        : "font-semibold wrap-anywhere text-vault-text"
                     }
                   >
                     {current.title}
@@ -620,8 +620,8 @@ export function Player() {
                   <p
                     className={
                       setMode
-                        ? "mt-1 text-base text-stone-400 sm:text-lg"
-                        : "text-sm text-vault-muted"
+                        ? "mt-1 text-base wrap-anywhere text-stone-400 sm:text-lg"
+                        : "text-sm wrap-anywhere text-vault-muted"
                     }
                   >
                     {current.artist}
