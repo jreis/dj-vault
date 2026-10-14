@@ -22,14 +22,21 @@ function TrackDetails({
 }) {
   return (
     <>
-      <p
-        className={`wrap-break-word text-vault-muted ${compact ? "truncate" : ""}`}
-        title={compact ? track.artist : undefined}
-      >
-        {track.artist}
-        <span className="text-vault-border"> · </span>
-        {track.year}
-      </p>
+      {compact ? (
+        <p className="flex min-w-0 text-vault-muted">
+          <span className="min-w-0 truncate">{track.artist}</span>
+          <span className="shrink-0 whitespace-pre">
+            <span className="text-vault-border"> · </span>
+            {track.year}
+          </span>
+        </p>
+      ) : (
+        <p className="wrap-break-word text-vault-muted">
+          {track.artist}
+          <span className="text-vault-border"> · </span>
+          {track.year}
+        </p>
+      )}
       <p className="mt-0.5 text-xs wrap-break-word text-vault-muted/70">
         {track.genre}
         <span className="text-vault-border"> · </span>
