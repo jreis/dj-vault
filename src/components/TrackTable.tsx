@@ -12,10 +12,20 @@ function songTooltip(track: Track): string {
   return `${track.title} — ${track.artist}`
 }
 
-function TrackDetails({ track }: { track: Track }) {
+function TrackDetails({
+  track,
+  compact = false,
+}: {
+  track: Track
+  /** Mobile cards: clamp long artist/notes so cards stay a sane height. */
+  compact?: boolean
+}) {
   return (
     <>
-      <p className="wrap-break-word text-vault-muted">
+      <p
+        className={`wrap-break-word text-vault-muted ${compact ? "truncate" : ""}`}
+        title={compact ? track.artist : undefined}
+      >
         {track.artist}
         <span className="text-vault-border"> · </span>
         {track.year}
@@ -32,7 +42,9 @@ function TrackDetails({ track }: { track: Track }) {
         )}
       </p>
       {track.notes ? (
-        <p className="mt-0.5 text-xs italic wrap-break-word text-vault-muted/60">
+        <p
+          className={`mt-0.5 text-xs italic wrap-break-word text-vault-muted/60 ${compact ? "line-clamp-2" : ""}`}
+        >
           {track.notes}
         </p>
       ) : null}
@@ -128,8 +140,8 @@ export function TrackTable({ tracks }: TrackTableProps) {
               data-selected={selected}
               onClick={() => select(track.id)}
             >
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center gap-0.5">
+              <div className="flex min-w-0 gap-2 min-[400px]:gap-3">
+                <div className="flex shrink-0 flex-col items-center gap-0.5">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -166,7 +178,7 @@ export function TrackTable({ tracks }: TrackTableProps) {
                 </div>
 
                 <div
-                  className="relative h-14 w-20 shrink-0 overflow-hidden rounded-md bg-vault-elevated"
+                  className="relative h-12 w-16 shrink-0 overflow-hidden rounded-md bg-vault-elevated min-[400px]:h-14 min-[400px]:w-20"
                   title={songTooltip(track)}
                 >
                   <img
@@ -188,7 +200,7 @@ export function TrackTable({ tracks }: TrackTableProps) {
 
                 <div className="min-w-0 flex-1" title={songTooltip(track)}>
                   <div className="flex items-start gap-1.5">
-                    <span className="min-w-0 flex-1 font-medium wrap-break-word text-vault-text">
+                    <span className="line-clamp-2 min-w-0 flex-1 font-medium wrap-anywhere text-vault-text">
                       {track.title}
                     </span>
                     {playing && (
@@ -202,8 +214,8 @@ export function TrackTable({ tracks }: TrackTableProps) {
                       </span>
                     )}
                   </div>
-                  <div className="text-sm">
-                    <TrackDetails track={track} />
+                  <div className="min-w-0 text-sm">
+                    <TrackDetails track={track} compact />
                   </div>
 
                   <div className="mt-2 flex flex-wrap gap-1.5">
