@@ -1146,7 +1146,7 @@ export function Player() {
                 ))}
               </ol>
             ) : (
-              <ol className="max-h-64 divide-y divide-vault-border/60 overflow-y-auto sm:max-h-72">
+              <ol className="max-h-[min(55dvh,22rem)] divide-y divide-vault-border/60 overflow-y-auto overscroll-contain sm:max-h-72">
                 {queueTracks.map((t, i) => (
                   <li
                     key={t.id}
@@ -1181,8 +1181,14 @@ export function Player() {
                       className="min-w-0 flex-1 truncate text-left hover:text-vault-amber"
                       title={`${t.title} — ${t.artist}`}
                     >
-                      <span className="text-vault-text">{t.title}</span>
-                      <span className="text-vault-muted"> — {t.artist}</span>
+                      {/* Phones: title and artist on their own truncated lines */}
+                      <span className="block truncate text-vault-text sm:inline">
+                        {t.title}
+                      </span>
+                      <span className="block truncate text-xs text-vault-muted sm:inline sm:text-sm">
+                        <span className="hidden sm:inline"> — </span>
+                        {t.artist}
+                      </span>
                     </button>
                     <button
                       type="button"
