@@ -1146,7 +1146,7 @@ export function Player() {
                 ))}
               </ol>
             ) : (
-              <ol className="max-h-[min(55dvh,22rem)] divide-y divide-vault-border/60 overflow-y-auto overscroll-contain sm:max-h-72">
+              <ol className="max-h-[min(55vh,22rem)] supports-[height:100dvh]:max-h-[min(55dvh,22rem)] divide-y divide-vault-border/60 overflow-y-auto overscroll-contain sm:max-h-72">
                 {queueTracks.map((t, i) => (
                   <li
                     key={t.id}
