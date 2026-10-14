@@ -1,4 +1,5 @@
 import { useVaultStore } from "../store/useVaultStore"
+import { useMobileBarVisible } from "../hooks/useMobileBarVisible"
 
 /**
  * Sticky bottom transport for phones (hidden at lg+, where the player column
@@ -6,9 +7,8 @@ import { useVaultStore } from "../store/useVaultStore"
  * user-initiated; the bar pads itself for the home indicator.
  */
 export function MobilePlayerBar() {
-  const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
+  const visible = useMobileBarVisible()
   const isPlaying = useVaultStore((s) => s.isPlaying)
-  const setMode = useVaultStore((s) => s.setMode)
   const togglePlayback = useVaultStore((s) => s.togglePlayback)
   const playNext = useVaultStore((s) => s.playNext)
   const playPrev = useVaultStore((s) => s.playPrev)
@@ -16,7 +16,7 @@ export function MobilePlayerBar() {
     s.nowPlayingId ? s.resolveTrack(s.nowPlayingId) : undefined,
   )
 
-  if (!nowPlayingId || !track || setMode) return null
+  if (!visible || !track) return null
 
   const jumpToPlayer = () =>
     document

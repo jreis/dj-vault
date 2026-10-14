@@ -34,6 +34,7 @@ import {
 import { useVaultStore } from "./store/useVaultStore"
 import { useToastStore } from "./store/useToastStore"
 import { useKeyboardNav } from "./hooks/useKeyboardNav"
+import { useMobileBarVisible } from "./hooks/useMobileBarVisible"
 
 export default function App() {
   const tracks = useVaultStore((s) => s.tracks)
@@ -148,7 +149,7 @@ export default function App() {
     }
   }, [hydrated, visibleIds])
 
-  const hasNowPlaying = useVaultStore((s) => s.nowPlayingId !== null)
+  const mobileBarVisible = useMobileBarVisible()
 
   useKeyboardNav(visibleIds, {
     onOpenShortcuts: openShortcuts,
@@ -159,7 +160,7 @@ export default function App() {
   return (
     <div
       className={`flex min-h-svh flex-col ${
-        hasNowPlaying
+        mobileBarVisible
           ? "pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-[env(safe-area-inset-bottom)]"
           : "pb-[env(safe-area-inset-bottom)]"
       }`}
