@@ -88,7 +88,7 @@ export function DiscoveryPanel() {
                     className="group flex items-center gap-1.5 rounded-md border border-vault-blue/30 bg-vault-surface px-2.5 py-1.5 text-xs text-vault-text transition hover:border-vault-blue hover:bg-vault-blue/10"
                   >
                     <span>{artist}</span>
-                    <span className="text-[10px] text-vault-blue opacity-0 transition group-hover:opacity-100">
+                    <span className="text-[10px] text-vault-blue opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:opacity-100">
                       ↗
                     </span>
                   </button>
@@ -120,7 +120,7 @@ export function DiscoveryPanel() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="truncate font-medium">{artist}</span>
-                      <span className="ml-1 text-[10px] text-vault-amber opacity-0 transition group-hover:opacity-100">
+                      <span className="ml-1 text-[10px] text-vault-amber opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:opacity-100">
                         ↗
                       </span>
                     </div>
