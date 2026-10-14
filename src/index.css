@@ -37,8 +37,19 @@ body,
   min-height: 100%;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
+  -webkit-tap-highlight-color: transparent;
   font-family: var(--font-sans);
   background: var(--color-vault-bg);
   color: var(--color-vault-text);
@@ -115,8 +126,10 @@ html[data-artist-theme="ghost"] body::before {
   background: var(--color-vault-border);
   border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-vault-muted);
+@media (hover: hover) {
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-vault-muted);
+  }
 }
 
 /* Table / card selection */
@@ -129,8 +142,14 @@ html[data-artist-theme="ghost"] body::before {
   box-shadow: inset 3px 0 0 var(--color-vault-amber);
 }
 
-.track-row:hover {
+.track-row:active {
   background: color-mix(in srgb, var(--color-vault-elevated) 80%, transparent);
+}
+
+@media (hover: hover) {
+  .track-row:hover {
+    background: color-mix(in srgb, var(--color-vault-elevated) 80%, transparent);
+  }
 }
 
 /* Now-playing equalizer bars on thumbs */
@@ -231,6 +250,46 @@ html[data-artist-theme="ghost"] body::before {
 /* Horizontal chip scroll — hide scrollbar on WebKit when not needed */
 [role="group"][aria-label="Filter by genre"] {
   scrollbar-width: thin;
+}
+
+/* iOS: no focus zoom — form controls must be >= 16px on phones */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Touch: 44px minimum tap targets (Apple HIG) on coarse pointers only,
+   so the dense desktop layout is untouched. */
+@media (pointer: coarse) {
+  button,
+  select,
+  [role="button"],
+  summary,
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+    min-height: 44px;
+  }
+  input[type="range"] {
+    min-height: 32px;
+  }
+}
+
+/* Readable minimum type on phones: lift the tiniest utility sizes */
+@media (max-width: 767px) {
+  .text-\[9px\],
+  .text-\[10px\] {
+    font-size: 11px;
+  }
+  .text-\[11px\] {
+    font-size: 12px;
+  }
 }
 
 /* Safe area for notched phones */
