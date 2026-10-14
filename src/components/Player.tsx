@@ -1178,11 +1178,11 @@ export function Player() {
                     <button
                       type="button"
                       onClick={() => play(t.id)}
-                      className="min-w-0 flex-1 truncate text-left hover:text-vault-amber"
+                      className="min-w-0 flex-1 text-left hover:text-vault-amber sm:truncate"
                       title={`${t.title} — ${t.artist}`}
                     >
-                      {/* Phones: title and artist on their own truncated lines */}
-                      <span className="block truncate text-vault-text sm:inline">
+                      {/* Phones: title clamps to two lines, artist truncates to one */}
+                      <span className="line-clamp-2 wrap-anywhere text-vault-text sm:inline sm:line-clamp-none sm:wrap-normal">
                         {t.title}
                       </span>
                       <span className="block truncate text-xs text-vault-muted sm:inline sm:text-sm">
