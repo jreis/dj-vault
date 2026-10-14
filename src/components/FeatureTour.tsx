@@ -63,7 +63,7 @@ export function FeatureTour() {
       />
       <div className="relative z-10 my-auto w-full max-w-lg overflow-hidden rounded-2xl border-2 border-vault-amber/50 bg-vault-surface shadow-2xl">
         <div className="border-b border-vault-border bg-gradient-to-r from-vault-amber/10 to-vault-blue/10 px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-vault-amber">
                 Feature Tour
@@ -92,22 +92,22 @@ export function FeatureTour() {
           </p>
         </div>
 
-        <div className="border-t border-vault-border bg-vault-elevated/50 px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="border-t border-vault-border bg-vault-elevated/50 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+          <div className="flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={prev}
               disabled={step === 0}
-              className="rounded-lg border border-vault-border px-4 py-2 text-sm text-vault-muted hover:text-vault-text disabled:opacity-30"
+              className="shrink-0 whitespace-nowrap rounded-lg border border-vault-border px-4 py-2 text-sm text-vault-muted hover:text-vault-text disabled:opacity-30"
             >
               ← Back
             </button>
 
-            <div className="flex gap-1.5">
+            <div className="flex min-w-0 gap-1 sm:gap-1.5">
               {steps.map((_, i) => (
                 <div
                   key={i}
-                  className={`h-1.5 w-8 rounded-full transition ${
+                  className={`h-1.5 w-4 shrink rounded-full transition sm:w-8 ${
                     i === step
                       ? "bg-vault-amber"
                       : i < step
@@ -121,7 +121,7 @@ export function FeatureTour() {
             <button
               type="button"
               onClick={next}
-              className="rounded-lg bg-vault-amber px-4 py-2 text-sm font-medium text-stone-950 hover:bg-amber-400"
+              className="shrink-0 whitespace-nowrap rounded-lg bg-vault-amber px-4 py-2 text-sm font-medium text-stone-950 hover:bg-amber-400"
             >
               {step === steps.length - 1 ? "Get Started" : "Next →"}
             </button>
