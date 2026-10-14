@@ -262,8 +262,9 @@ html[data-artist-theme="ghost"] body::before {
 }
 
 /* Touch: 44px minimum tap targets (Apple HIG) on coarse pointers only,
-   so the dense desktop layout is untouched. */
-@media (pointer: coarse) {
+   below lg, so the dense desktop layout (incl. touch laptops/iPads at
+   desktop widths) is untouched. */
+@media (pointer: coarse) and (max-width: 1023px) {
   button,
   select,
   [role="button"],
