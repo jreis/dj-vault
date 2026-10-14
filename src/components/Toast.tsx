@@ -1,4 +1,5 @@
 import { useToastStore } from "../store/useToastStore"
+import { useMobileBarVisible } from "../hooks/useMobileBarVisible"
 
 const toneClass: Record<string, string> = {
   info: "border-vault-blue/40 bg-vault-surface text-vault-blue",
@@ -10,12 +11,17 @@ export function Toast() {
   const message = useToastStore((s) => s.message)
   const tone = useToastStore((s) => s.tone)
   const clear = useToastStore((s) => s.clear)
+  const barVisible = useMobileBarVisible()
 
   if (!message) return null
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-[max(1rem,env(safe-area-inset-bottom))]"
+      className={`pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center p-4 ${
+        barVisible
+          ? "pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-[max(1rem,env(safe-area-inset-bottom))]"
+          : "pb-[max(1rem,env(safe-area-inset-bottom))]"
+      }`}
       role="status"
       aria-live="polite"
     >
