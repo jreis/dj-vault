@@ -17,6 +17,7 @@ import { WelcomeBanner } from "./components/WelcomeBanner"
 import { ShortcutsModal } from "./components/ShortcutsModal"
 import { FeatureTour } from "./components/FeatureTour"
 import { Toast } from "./components/Toast"
+import { MobilePlayerBar } from "./components/MobilePlayerBar"
 import {
   applyArtistTheme,
   resolveArtistExperience,
@@ -147,6 +148,8 @@ export default function App() {
     }
   }, [hydrated, visibleIds])
 
+  const hasNowPlaying = useVaultStore((s) => s.nowPlayingId !== null)
+
   useKeyboardNav(visibleIds, {
     onOpenShortcuts: openShortcuts,
     onCloseOverlays: closeShortcuts,
@@ -154,7 +157,13 @@ export default function App() {
   })
 
   return (
-    <div className="flex min-h-svh flex-col pb-[env(safe-area-inset-bottom)]">
+    <div
+      className={`flex min-h-svh flex-col ${
+        hasNowPlaying
+          ? "pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-[env(safe-area-inset-bottom)]"
+          : "pb-[env(safe-area-inset-bottom)]"
+      }`}
+    >
       <Header
         trackCount={tracks.length}
         visibleCount={visible.length}
@@ -263,6 +272,7 @@ export default function App() {
 
       <ShortcutsModal open={showShortcuts} onClose={closeShortcuts} />
       <FeatureTour />
+      <MobilePlayerBar />
       <Toast />
     </div>
   )
