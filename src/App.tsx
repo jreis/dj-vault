@@ -218,10 +218,10 @@ export default function App() {
         <SimilarTracks />
 
         {/* Player first on mobile so thumbs can start a set quickly */}
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_380px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
           <section
             aria-label="Player and queue"
-            className="order-1 min-w-0 max-w-full lg:order-2 lg:sticky lg:top-20 lg:self-start"
+            className="order-1 min-w-0 lg:order-2 lg:sticky lg:top-20 lg:self-start"
           >
             <Player />
           </section>

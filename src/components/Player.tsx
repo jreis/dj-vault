@@ -491,7 +491,7 @@ export function Player() {
           className={
             setMode
               ? "flex min-w-0 flex-1 flex-col gap-4"
-              : "min-w-0 max-w-full overflow-hidden rounded-xl border border-vault-border bg-vault-surface shadow-lg"
+              : "min-w-0 overflow-hidden rounded-xl border border-vault-border bg-vault-surface shadow-lg"
           }
         >
           {!setMode && (
