@@ -64,6 +64,20 @@ export function replaceCuratedPlaylists(
   ]
 }
 
+/**
+ * Apply a published playlist list.
+ * An empty list does not delete playlists already on the page — a catalog
+ * that omitted them must not wipe saved or bundled lists. A non-empty list
+ * still replaces curated defaults. User-made playlists stay either way.
+ */
+export function playlistsAfterPublishedCatalog(
+  current: Playlist[],
+  published: Playlist[] | null | undefined,
+): Playlist[] {
+  if (published == null || published.length === 0) return current
+  return replaceCuratedPlaylists(current, published)
+}
+
 const SEED_ID = /^seed-(\d+)$/
 const GENRE_SET = new Set<string>(GENRES)
 const ERA_SET = new Set<string>(ERAS)

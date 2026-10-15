@@ -2,7 +2,10 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   holdRemovedTrack,
+  retainPlaylistTracks,
+  seedsForPlaylist,
   tracksForPlaylist,
+  tracksForPlaylistPublish,
 } from "../src/lib/playlistPlayback.ts"
 import type { Playlist, Track } from "../src/types.ts"
 
@@ -106,5 +109,86 @@ describe("playlist playback after a song leaves the vault", () => {
     })
     const held = holdRemovedTrack([], [playlist(["seed-2"])], removed)
     assert.deepEqual(held, [])
+  })
+
+  it("keeps bundled songs when the published catalog is a different set", () => {
+    const published = track({
+      id: "seed-73",
+      title: "Battery",
+      youtubeId: "battery11111",
+    })
+    const bundled = track({
+      id: "seed-2",
+      title: "Smells Like Teen Spirit",
+      youtubeId: "hTWKbfoikeg",
+    })
+
+    const playable = tracksForPlaylist(["seed-2", "seed-73"], {
+      library: [],
+      held: [],
+      seeds: seedsForPlaylist([published], [bundled]),
+    })
+
+    assert.deepEqual(
+      playable.map((t) => t.id),
+      ["seed-2", "seed-73"],
+    )
+  })
+
+  it("prefers the published upload when both catalogs share an id", () => {
+    const published = track({
+      id: "seed-2",
+      title: "Smells Like Teen Spirit",
+      youtubeId: "newnewnew11",
+    })
+    const bundled = track({
+      id: "seed-2",
+      title: "Smells Like Teen Spirit",
+      youtubeId: "hTWKbfoikeg",
+    })
+
+    const playable = tracksForPlaylist(["seed-2"], {
+      library: [],
+      held: [],
+      seeds: seedsForPlaylist([published], [bundled]),
+    })
+
+    assert.equal(playable[0]?.youtubeId, "newnewnew11")
+  })
+
+  it("remembers every playlist song that leaves the vault together", () => {
+    const kept = track({
+      id: "seed-2",
+      title: "Smells Like Teen Spirit",
+      youtubeId: "hTWKbfoikeg",
+    })
+    const dropped = track({
+      id: "seed-9",
+      title: "Paranoid",
+      youtubeId: "0qanF-91aJo",
+    })
+    const held = retainPlaylistTracks([], [playlist(["seed-2"])], [kept, dropped])
+    assert.deepEqual(
+      held.map((t) => t.id),
+      ["seed-2"],
+    )
+  })
+
+  it("publishes snapshots that playlists still name", () => {
+    const library = track({
+      id: "seed-73",
+      title: "Battery",
+      youtubeId: "battery11111",
+    })
+    const held = track({
+      id: "seed-2",
+      title: "Smells Like Teen Spirit",
+      youtubeId: "hTWKbfoikeg",
+    })
+    const list = tracksForPlaylistPublish([library], [held], [playlist(["seed-2"])])
+    assert.deepEqual(
+      list.map((t) => t.id),
+      ["seed-73", "seed-2"],
+    )
   })
 })

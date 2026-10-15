@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { SEED_TRACKS } from "../data/seedTracks"
-import { findPlayableTrack } from "../lib/playlistPlayback"
+import { findPlayableTrack, seedsForPlaylist } from "../lib/playlistPlayback"
 import { useVaultStore } from "../store/useVaultStore"
 import { rankTracksByScore } from "../lib/filterTracks"
 import {
@@ -70,7 +70,7 @@ export function Player() {
     findPlayableTrack(id, {
       library: tracks,
       held: heldTracks,
-      seeds: publishedSeeds ?? SEED_TRACKS,
+      seeds: seedsForPlaylist(publishedSeeds, SEED_TRACKS),
       guestTracks,
       previewTrack,
     })

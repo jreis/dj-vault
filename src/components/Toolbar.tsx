@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react"
 import type { Track } from "../types"
 import { SEED_TRACKS } from "../data/seedTracks"
-import { findPlayableTrack } from "../lib/playlistPlayback"
+import {
+  findPlayableTrack,
+  seedsForPlaylist,
+  tracksForPlaylistPublish,
+} from "../lib/playlistPlayback"
 import { clearShareHash } from "../lib/shareLink"
 import { createShareLink } from "../lib/shareApi"
 import { consumeCuratorUnlock, shouldShowSeedPublisher } from "../lib/curator"
@@ -58,6 +62,7 @@ export function Toolbar() {
   const [seedError, setSeedError] = useState<string | null>(null)
   const [seedBusy, setSeedBusy] = useState(false)
   const seedCount = (publishedSeeds ?? SEED_TRACKS).length
+  const publishTracks = tracksForPlaylistPublish(tracks, heldTracks, playlists)
   const needsSeedPassword = !import.meta.env.DEV
   const [showSeedPublisher, setShowSeedPublisher] = useState(
     () => import.meta.env.DEV,
@@ -85,7 +90,7 @@ export function Toolbar() {
       list = resolveSetTracks({
         tracks,
         heldTracks,
-        seeds: publishedSeeds ?? SEED_TRACKS,
+        seeds: seedsForPlaylist(publishedSeeds, SEED_TRACKS),
         guestTracks,
         nowPlayingId,
         queue,
@@ -121,7 +126,7 @@ export function Toolbar() {
       list = resolveSetTracks({
         tracks,
         heldTracks,
-        seeds: publishedSeeds ?? SEED_TRACKS,
+        seeds: seedsForPlaylist(publishedSeeds, SEED_TRACKS),
         guestTracks,
         nowPlayingId,
         queue,
@@ -191,7 +196,7 @@ export function Toolbar() {
   }
 
   function openSeedDialog() {
-    if (tracks.length === 0) {
+    if (publishTracks.length === 0) {
       showToast("Vault is empty — add a track first.", "error")
       return
     }
@@ -200,10 +205,10 @@ export function Toolbar() {
   }
 
   async function confirmPublishSeed() {
-    if (tracks.length === 0) return
+    if (publishTracks.length === 0) return
     setSeedBusy(true)
     setSeedError(null)
-    const result = await publishSeeds(tracks, playlists, seedPassword)
+    const result = await publishSeeds(publishTracks, playlists, seedPassword)
     if (!result.ok) {
       setSeedBusy(false)
       setSeedError(result.error)
@@ -317,7 +322,7 @@ export function Toolbar() {
           onClick={() => {
             if (
               confirm(
-                `Clear all ${tracks.length} track${tracks.length === 1 ? "" : "s"} from the vault? Playback will stop. Playlists keep their names but lose these tracks. Export first if you want a backup. Reset seed restores the starter library.`,
+                `Clear all ${tracks.length} track${tracks.length === 1 ? "" : "s"} from the vault? Playback will stop. Saved playlists keep their songs. Reset seed restores the starter library.`,
               )
             ) {
               clearLibrary()
@@ -443,8 +448,8 @@ export function Toolbar() {
               id="seed-title"
               className="text-sm font-semibold text-vault-text"
             >
-              Publish {tracks.length} track
-              {tracks.length === 1 ? "" : "s"}
+              Publish {publishTracks.length} track
+              {publishTracks.length === 1 ? "" : "s"}
               {playlists.length === 0
                 ? ""
                 : ` and ${playlists.length} playlist${playlists.length === 1 ? "" : "s"}`}{" "}

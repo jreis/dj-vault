@@ -1,6 +1,6 @@
 import { useState, useRef } from "react"
 import { SEED_TRACKS } from "../data/seedTracks"
-import { tracksForPlaylist } from "../lib/playlistPlayback"
+import { seedsForPlaylist, tracksForPlaylist } from "../lib/playlistPlayback"
 import { createShareLink } from "../lib/shareApi"
 import { useToastStore } from "../store/useToastStore"
 import { useVaultStore } from "../store/useVaultStore"
@@ -58,7 +58,7 @@ export function PlaylistPanel() {
     return tracksForPlaylist(pl.trackIds, {
       library: tracks,
       held: heldTracks,
-      seeds: publishedSeeds ?? SEED_TRACKS,
+      seeds: seedsForPlaylist(publishedSeeds, SEED_TRACKS),
       guestTracks,
     })
   }

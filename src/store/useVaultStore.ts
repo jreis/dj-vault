@@ -6,7 +6,7 @@ import {
   SEED_TRACKS,
 } from "../data/seedTracks"
 import { SEED_PLAYLISTS } from "../data/seedPlaylists"
-import { replaceCuratedPlaylists } from "../../functions/_lib/seedCatalog"
+import { playlistsAfterPublishedCatalog } from "../../functions/_lib/seedCatalog"
 import type { PublishedCatalog } from "../lib/seedApi"
 import { estimateBPM } from "../lib/bpm"
 import {
@@ -27,8 +27,9 @@ import { highestVotedTrackId, rankTracksByScore } from "../lib/filterTracks"
 import {
   findPlayableTrack,
   holdRemovedTrack,
-  idsPlaylistsCanKeep,
   releaseUnheldTracks,
+  retainPlaylistTracks,
+  seedsForPlaylist,
   tracksForPlaylist,
 } from "../lib/playlistPlayback"
 import type { Filters, Genre, Playlist, Track } from "../types"
@@ -354,7 +355,7 @@ export const useVaultStore = create<VaultState>()(
         return findPlayableTrack(id, {
           library: s.tracks,
           held: s.heldTracks,
-          seeds: s.publishedSeeds ?? SEED_TRACKS,
+          seeds: seedsForPlaylist(s.publishedSeeds, SEED_TRACKS),
           guestTracks: s.guestTracks,
           previewTrack: s.previewTrack,
         })
@@ -488,7 +489,11 @@ export const useVaultStore = create<VaultState>()(
 
       resetToSeed: () => {
         const seeds = get().publishedSeeds ?? SEED_TRACKS
-        const playlists = get().publishedPlaylists ?? SEED_PLAYLISTS
+        const publishedLists = get().publishedPlaylists
+        const playlists =
+          publishedLists && publishedLists.length > 0
+            ? publishedLists
+            : SEED_PLAYLISTS
         set({
           tracks: seeds,
           playlists,
@@ -510,8 +515,8 @@ export const useVaultStore = create<VaultState>()(
       clearLibrary: () => {
         set((s) => ({
           tracks: [],
-          playlists: prunePlaylistIds(s.playlists, new Set()),
-          heldTracks: [],
+          playlists: s.playlists,
+          heldTracks: retainPlaylistTracks(s.heldTracks, s.playlists, s.tracks),
           guestTracks: [],
           guestSetName: null,
           previewTrack: null,
@@ -543,30 +548,34 @@ export const useVaultStore = create<VaultState>()(
                 seedTrackIds,
               ).filter((p) => p.trackIds.length > 0)
         set((s) => {
-          const playlists = replaceCuratedPlaylists(
+          const playlists = playlistsAfterPublishedCatalog(
             s.playlists,
             publishedPlaylists,
           )
           const tracks = s.awaitingPublishedSeeds
             ? seedTracks
             : healTracks(s.tracks, seedTracks)
+          const keptPlaylists =
+            publishedPlaylists && publishedPlaylists.length > 0
+              ? publishedPlaylists
+              : null
           if (s.awaitingPublishedSeeds) {
-            const nextPlaylists = publishedPlaylists ?? SEED_PLAYLISTS
             return {
               publishedSeeds: seedTracks,
-              publishedPlaylists: nextPlaylists,
+              publishedPlaylists: keptPlaylists,
               awaitingPublishedSeeds: false,
               tracks,
-              playlists: nextPlaylists,
-              heldTracks: releaseUnheldTracks(s.heldTracks, nextPlaylists),
+              playlists,
+              heldTracks: releaseUnheldTracks(s.heldTracks, playlists),
               selectedId: highestVotedTrackId(seedTracks) ?? s.selectedId,
             }
           }
           // Keep the user's library. Published videos replace a saved upload
           // only when that upload is the rickroll video on the wrong song.
+          // An empty published playlist list does not delete saved lists.
           return {
             publishedSeeds: seedTracks,
-            publishedPlaylists: publishedPlaylists ?? s.publishedPlaylists,
+            publishedPlaylists: keptPlaylists,
             awaitingPublishedSeeds: false,
             tracks,
             playlists,
@@ -585,8 +594,12 @@ export const useVaultStore = create<VaultState>()(
             nowPlayingId: null,
             isPlaying: false,
             selectedId: highestVotedTrackId(tracksWithBPM),
-            playlists: prunePlaylistIds(s.playlists, trackIds),
-            heldTracks: [],
+            playlists: s.playlists,
+            heldTracks: retainPlaylistTracks(
+              s.heldTracks,
+              s.playlists,
+              s.tracks.filter((t) => !trackIds.has(t.id)),
+            ),
             guestTracks: [],
             guestSetName: null,
             previewTrack: null,
@@ -791,7 +804,7 @@ export const useVaultStore = create<VaultState>()(
             tracks: tracksForPlaylist(pl.trackIds, {
               library: s.tracks,
               held: s.heldTracks,
-              seeds: s.publishedSeeds ?? SEED_TRACKS,
+              seeds: seedsForPlaylist(s.publishedSeeds, SEED_TRACKS),
             }),
           })),
         }
@@ -903,7 +916,7 @@ export const useVaultStore = create<VaultState>()(
         const playable = tracksForPlaylist(p.trackIds, {
           library: s.tracks,
           held: s.heldTracks,
-          seeds: s.publishedSeeds ?? SEED_TRACKS,
+          seeds: seedsForPlaylist(s.publishedSeeds, SEED_TRACKS),
           guestTracks: s.guestTracks,
           previewTrack: s.previewTrack,
         })
@@ -1345,15 +1358,12 @@ export const useVaultStore = create<VaultState>()(
           : current.queue
 
         const userPlaylists = Array.isArray(p.playlists)
-          ? prunePlaylistIds(
-              p.playlists.filter(
-                (pl): pl is Playlist =>
-                  Boolean(pl) &&
-                  typeof pl.id === "string" &&
-                  typeof pl.name === "string" &&
-                  Array.isArray(pl.trackIds),
-              ),
-              idsPlaylistsCanKeep(trackIds, heldTracks, SEED_TRACKS),
+          ? p.playlists.filter(
+              (pl): pl is Playlist =>
+                Boolean(pl) &&
+                typeof pl.id === "string" &&
+                typeof pl.name === "string" &&
+                Array.isArray(pl.trackIds),
             )
           : []
 

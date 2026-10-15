@@ -4,6 +4,7 @@ import type { Playlist, Track } from "../src/types.ts"
 import {
   catalogToSeedRecords,
   getPublishedCatalog,
+  playlistsAfterPublishedCatalog,
   putPublishedCatalog,
   replaceCuratedPlaylists,
   type SeedEnv,
@@ -176,5 +177,54 @@ describe("replaceCuratedPlaylists", () => {
       }),
     ]
     assert.equal(replaceCuratedPlaylists(current, null), current)
+  })
+})
+
+describe("playlistsAfterPublishedCatalog", () => {
+  it("keeps saved playlists when the catalog has none", () => {
+    const current = [
+      playlist({
+        id: "jason-grunge",
+        name: "Grunge Essentials",
+        trackIds: ["seed-2"],
+        curated: true,
+      }),
+      playlist({
+        id: "pl_mine",
+        name: "Dad's Favorites",
+        trackIds: ["seed-1"],
+      }),
+    ]
+    assert.equal(playlistsAfterPublishedCatalog(current, []), current)
+    assert.equal(playlistsAfterPublishedCatalog(current, null), current)
+  })
+
+  it("still swaps curated lists when the catalog publishes some", () => {
+    const current = [
+      playlist({
+        id: "jason-grunge",
+        name: "Grunge Essentials",
+        trackIds: ["seed-2"],
+        curated: true,
+      }),
+      playlist({
+        id: "pl_mine",
+        name: "Dad's Favorites",
+        trackIds: ["seed-1"],
+      }),
+    ]
+    const published = [
+      playlist({
+        id: "seed-pl-1",
+        name: "Tonight's Set",
+        trackIds: ["seed-3"],
+        curated: true,
+      }),
+    ]
+    const next = playlistsAfterPublishedCatalog(current, published)
+    assert.deepEqual(
+      next.map((p) => p.id),
+      ["seed-pl-1", "pl_mine"],
+    )
   })
 })

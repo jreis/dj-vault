@@ -84,3 +84,44 @@ export function idsPlaylistsCanKeep(
   for (const track of seeds) keep.add(track.id)
   return keep
 }
+
+/**
+ * Catalog first, then bundled songs the catalog does not include.
+ * A smaller published library must not hide playlist songs.
+ */
+export function seedsForPlaylist(
+  published: Track[] | null | undefined,
+  bundled: Track[],
+): Track[] {
+  if (!published || published.length === 0) return bundled
+  const seen = new Set(published.map((t) => t.id))
+  return [...published, ...bundled.filter((t) => !seen.has(t.id))]
+}
+
+/** Remember every song a playlist still names as those songs leave the vault. */
+export function retainPlaylistTracks(
+  held: Track[],
+  playlists: { trackIds: string[] }[],
+  leaving: Track[],
+): Track[] {
+  let next = held
+  for (const track of leaving) {
+    next = holdRemovedTrack(next, playlists, track)
+  }
+  return next
+}
+
+/**
+ * Vault tracks plus snapshots playlists still name.
+ * Publish uses this so a list is not dropped when its songs left the vault.
+ */
+export function tracksForPlaylistPublish(
+  library: Track[],
+  held: Track[],
+  playlists: { trackIds: string[] }[],
+): Track[] {
+  const referenced = new Set(playlists.flatMap((p) => p.trackIds))
+  const seen = new Set(library.map((t) => t.id))
+  const extra = held.filter((t) => referenced.has(t.id) && !seen.has(t.id))
+  return [...library, ...extra]
+}
