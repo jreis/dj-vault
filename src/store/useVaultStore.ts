@@ -23,7 +23,8 @@ import {
   songIdentity,
   uniqueSongs,
 } from "../lib/youtubeDiscover.ts"
-import { highestVotedTrackId, rankTracksByScore } from "../lib/filterTracks"
+import { highestVotedTrackId } from "../lib/filterTracks"
+import { advancePlayback, retreatPlayback } from "../lib/playbackOrder"
 import {
   findPlayableTrack,
   holdRemovedTrack,
@@ -1105,7 +1106,7 @@ export const useVaultStore = create<VaultState>()(
         const id =
           s.nowPlayingId ??
           s.selectedId ??
-          highestVotedTrackId(selectPlaybackTracks(s))
+          highestVotedTrackId(s.tracks)
         if (id) get().play(id)
       },
 
@@ -1194,64 +1195,40 @@ export const useVaultStore = create<VaultState>()(
       },
 
       playNext: () => {
-        const { queue, nowPlayingId, previewTrack } = get()
-        const tracks = selectPlaybackTracks(get())
-        if (queue.length > 0) {
-          const [next, ...rest] = queue
+        const { queue, nowPlayingId, previewTrack, tracks } = get()
+        const advanced = advancePlayback({
+          vault: tracks,
+          nowPlayingId,
+          queue,
+        })
+        if (!advanced.id) {
           set({
-            nowPlayingId: next,
-            isPlaying: true,
-            selectedId: next,
-            queue: rest,
-            previewTrack: previewIfCurrent(previewTrack, next),
+            nowPlayingId: null,
+            isPlaying: false,
+            queue: [],
+            previewTrack: null,
           })
           return
         }
-        const sorted = rankTracksByScore(tracks)
-        if (!nowPlayingId) {
-          if (sorted[0])
-            set({
-              nowPlayingId: sorted[0].id,
-              isPlaying: true,
-              selectedId: sorted[0].id,
-              previewTrack: previewIfCurrent(previewTrack, sorted[0].id),
-            })
-          return
-        }
-        const idx = sorted.findIndex((t) => t.id === nowPlayingId)
-        const next = sorted[idx + 1] ?? sorted[0]
-        if (next)
-          set({
-            nowPlayingId: next.id,
-            isPlaying: true,
-            selectedId: next.id,
-            previewTrack: previewIfCurrent(previewTrack, next.id),
-          })
+        set({
+          nowPlayingId: advanced.id,
+          isPlaying: true,
+          selectedId: advanced.id,
+          queue: advanced.queue,
+          previewTrack: previewIfCurrent(previewTrack, advanced.id),
+        })
       },
 
       playPrev: () => {
-        const { nowPlayingId, previewTrack } = get()
-        const tracks = selectPlaybackTracks(get())
-        const sorted = rankTracksByScore(tracks)
-        if (!nowPlayingId) {
-          if (sorted[0])
-            set({
-              nowPlayingId: sorted[0].id,
-              isPlaying: true,
-              selectedId: sorted[0].id,
-              previewTrack: previewIfCurrent(previewTrack, sorted[0].id),
-            })
-          return
-        }
-        const idx = sorted.findIndex((t) => t.id === nowPlayingId)
-        const prev = sorted[idx - 1] ?? sorted[sorted.length - 1]
-        if (prev)
-          set({
-            nowPlayingId: prev.id,
-            isPlaying: true,
-            selectedId: prev.id,
-            previewTrack: previewIfCurrent(previewTrack, prev.id),
-          })
+        const { nowPlayingId, previewTrack, tracks } = get()
+        const prev = retreatPlayback({ vault: tracks, nowPlayingId })
+        if (!prev) return
+        set({
+          nowPlayingId: prev,
+          isPlaying: true,
+          selectedId: prev,
+          previewTrack: previewIfCurrent(previewTrack, prev),
+        })
       },
 
       select: (id) => set({ selectedId: id }),

@@ -56,6 +56,8 @@ export interface YtPlayer {
   getCurrentTime: () => number
   getDuration: () => number
   seekTo: (seconds: number, allowSeekAhead: boolean) => void
+  /** Present on the real IFrame player. Absent in tests that only fake transport. */
+  getVideoData?: () => { video_id?: string }
 }
 
 /** The Player currently mounted in the page — used to resume from a user gesture. */
@@ -150,6 +152,8 @@ export interface CreatePlayerOptions {
   /** Cue the video at this second (concert song start). */
   startSeconds?: number
   onEnded?: () => void
+  /** Fires when the embed transitions to playing, including a swapped video. */
+  onPlaying?: (player: YtPlayer) => void
   onError?: (code: number) => void
   onReady?: () => void
 }
@@ -210,9 +214,13 @@ export async function createYouTubePlayer(
           options.onError?.(e.data)
         },
         onStateChange: (e) => {
-          // 0 === ENDED
+          // 0 === ENDED, 1 === PLAYING
           if (e.data === 0 || e.data === YT.PlayerState?.ENDED) {
             options.onEnded?.()
+            return
+          }
+          if (e.data === 1 || e.data === YT.PlayerState?.PLAYING) {
+            options.onPlaying?.(e.target)
           }
         },
       },

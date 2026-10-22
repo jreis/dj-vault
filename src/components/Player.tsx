@@ -28,6 +28,7 @@ import {
   type WakeLockSentinelLike,
 } from "../lib/playbackSession"
 import { shouldAwardListenVote } from "../lib/listenVote"
+import { embedDrift, type EmbedDrift } from "../lib/playbackOrder"
 import type { Track } from "../types"
 import { AudioVisualizer } from "./AudioVisualizer"
 import { AddToPlaylistMenu } from "./AddToPlaylistMenu"
@@ -93,6 +94,15 @@ export function Player() {
   playNextRef.current = playNext
   const maxHeardRef = useRef(0)
   const endedFromErrorRef = useRef(false)
+  /** Playhead sample from the previous tick, for detecting a restart. */
+  const lastTimeRef = useRef(0)
+  /** True once this mount has actually played the vault video. */
+  const sawExpectedRef = useRef(false)
+  /** ENDED and a YouTube suggestion can both ask to advance. Do it once. */
+  const advancedRef = useRef(false)
+  const followRef = useRef<(player: YtPlayer, forced?: EmbedDrift) => void>(
+    () => {},
+  )
   const embedTriesRef = useRef<{ trackId: string; ids: Set<string> }>({
     trackId: "",
     ids: new Set(),
@@ -110,6 +120,74 @@ export function Player() {
     : 0
   const trackTitle = current?.title ?? ""
   const trackArtist = current?.artist ?? ""
+
+  // Keep the latest clip guard for the player effect and the 1s tick.
+  useEffect(() => {
+    followRef.current = (player, forced) => {
+      if (!trackId || !videoId) return
+      if (wiredTrackIdRef.current !== trackId) return
+      let currentTime = lastTimeRef.current
+      let duration = 0
+      let actual: string | undefined
+      try {
+        const t = player.getCurrentTime()
+        if (Number.isFinite(t)) currentTime = t
+        const d = player.getDuration()
+        if (Number.isFinite(d)) duration = d
+        actual = player.getVideoData?.()?.video_id
+      } catch {
+        if (!forced) return
+      }
+      if (actual === videoId) sawExpectedRef.current = true
+      const drift =
+        forced ??
+        embedDrift({
+          expectedVideoId: videoId,
+          actualVideoId: actual,
+          startSeconds,
+          previousTime: lastTimeRef.current,
+          currentTime,
+          duration,
+          sawExpected: sawExpectedRef.current,
+        })
+      if (drift === "stay") {
+        if (currentTime > maxHeardRef.current) maxHeardRef.current = currentTime
+        lastTimeRef.current = currentTime
+        return
+      }
+      const cue = startSeconds > 0 ? startSeconds : 0
+      if (drift === "recue" || drift === "restore") {
+        try {
+          if (drift === "restore") player.loadVideoById(videoId)
+          player.seekTo(cue, true)
+          player.playVideo()
+        } catch {
+          // iframe may be tearing down
+        }
+        lastTimeRef.current = cue
+        return
+      }
+      if (advancedRef.current) return
+      advancedRef.current = true
+      try {
+        player.stopVideo()
+      } catch {
+        // already gone
+      }
+      playNextRef.current()
+      // Same vault song again: replay the cue. A new id remounts the player.
+      if (useVaultStore.getState().nowPlayingId === trackId) {
+        try {
+          player.seekTo(cue, true)
+          player.playVideo()
+        } catch {
+          // iframe may be tearing down
+        }
+        advancedRef.current = false
+        lastTimeRef.current = cue
+      }
+    }
+  }, [trackId, videoId, startSeconds])
 
   // Lock page scroll while Set Mode is open.
   useEffect(() => {
@@ -141,6 +219,9 @@ export function Player() {
 
     wiredTrackIdRef.current = trackId
     maxHeardRef.current = startSeconds
+    lastTimeRef.current = startSeconds
+    sawExpectedRef.current = false
+    advancedRef.current = false
     endedFromErrorRef.current = false
     setUnavailable(null)
     setFindingAlternate(false)
@@ -262,7 +343,16 @@ export function Player() {
         ) {
           useVaultStore.getState().awardCompletedListen(trackId)
         }
-        playNextRef.current()
+        const player = playerRef.current
+        if (player) followRef.current(player, "advance")
+        else if (!advancedRef.current) {
+          advancedRef.current = true
+          playNextRef.current()
+        }
+      },
+      onPlaying: (player) => {
+        if (cancelled || wiredTrackIdRef.current !== trackId) return
+        followRef.current(player)
       },
       onError: (code) => {
         if (cancelled || wiredTrackIdRef.current !== trackId) return
@@ -300,14 +390,7 @@ export function Player() {
     const tick = () => {
       const player = playerRef.current
       if (!player) return
-      try {
-        const t = player.getCurrentTime()
-        if (Number.isFinite(t) && t > maxHeardRef.current) {
-          maxHeardRef.current = t
-        }
-      } catch {
-        // iframe may not be ready
-      }
+      followRef.current(player)
     }
     tick()
     const timer = window.setInterval(tick, 1000)
