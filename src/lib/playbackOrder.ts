@@ -64,13 +64,23 @@ export function embedDrift(input: {
   currentTime: number
   /** Upload length in seconds. 0 when the player has not reported it. */
   duration?: number
+  /**
+   * Length of the vault upload, sampled while that video was playing.
+   * After a suggestion loads, `duration` is the new upload and is too long
+   * to still look like the end of the clip.
+   */
+  vaultDuration?: number
   sawExpected: boolean
 }): EmbedDrift {
   const actual = input.actualVideoId?.trim() ?? ""
   if (actual && actual !== input.expectedVideoId) {
     if (!input.sawExpected) return "stay"
-    const duration = input.duration ?? 0
-    const nearEnd = duration > 0 && input.previousTime >= duration - 2
+    const reported = input.duration ?? 0
+    const length =
+      input.vaultDuration && input.vaultDuration > 0
+        ? input.vaultDuration
+        : reported
+    const nearEnd = length > 0 && input.previousTime >= length - 2
     return nearEnd ? "advance" : "restore"
   }
   if (
@@ -81,4 +91,31 @@ export function embedDrift(input: {
     return "recue"
   }
   return "stay"
+}
+
+function videoIdFromWatchUrl(videoUrl?: string | null): string {
+  const url = videoUrl?.trim() ?? ""
+  if (!url) return ""
+  try {
+    return new URL(url).searchParams.get("v")?.trim() ?? ""
+  } catch {
+    return /[?&]v=([A-Za-z0-9_-]{6,})/.exec(url)?.[1] ?? ""
+  }
+}
+
+/**
+ * Video id the embed is actually on.
+ * `getVideoData().video_id` can stay on the clip we loaded after YouTube
+ * has already started a same-channel suggestion. The watch URL moves first.
+ */
+export function observedEmbedVideoId(input: {
+  expectedVideoId: string
+  dataId?: string | null
+  videoUrl?: string | null
+}): string {
+  const fromData = input.dataId?.trim() ?? ""
+  const fromUrl = videoIdFromWatchUrl(input.videoUrl)
+  if (fromData && fromData !== input.expectedVideoId) return fromData
+  if (fromUrl && fromUrl !== input.expectedVideoId) return fromUrl
+  return fromData || fromUrl
 }

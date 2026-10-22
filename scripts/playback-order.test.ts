@@ -171,4 +171,22 @@ describe("embedDrift", () => {
       "stay",
     )
   })
+
+  it("advances when a same-channel suggestion reports a longer duration", () => {
+    // The clip ended at ~209s. YouTube has already loaded the next upload
+    // from that channel, so getDuration() is the suggestion, not the clip.
+    assert.equal(
+      embedDrift({
+        expectedVideoId: "fugazi-waiting",
+        actualVideoId: "fugazi-suggestion",
+        startSeconds: 0,
+        previousTime: 209,
+        currentTime: 0.5,
+        duration: 240,
+        vaultDuration: 211,
+        sawExpected: true,
+      }),
+      "advance",
+    )
+  })
 })

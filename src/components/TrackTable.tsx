@@ -1,5 +1,7 @@
+import { useEffect } from "react"
 import type { Track } from "../types"
 import { useVaultStore } from "../store/useVaultStore"
+import { trackRowFlags } from "../lib/trackRow"
 import { youtubeThumbUrl } from "../lib/youtube"
 import { AddToPlaylistMenu } from "./AddToPlaylistMenu"
 import { ShareTrackButton } from "./ShareTrackButton"
@@ -73,6 +75,19 @@ export function TrackTable({ tracks }: TrackTableProps) {
   const searchQuery = useVaultStore((s) => s.filters.query)
   const libraryCount = useVaultStore((s) => s.tracks.length)
 
+  useEffect(() => {
+    if (!nowPlayingId) return
+    const nodes = document.querySelectorAll(
+      `[data-track-id="${CSS.escape(nowPlayingId)}"]`,
+    )
+    for (const el of nodes) {
+      if (el instanceof HTMLElement && el.getClientRects().length > 0) {
+        el.scrollIntoView({ block: "nearest", behavior: "smooth" })
+        return
+      }
+    }
+  }, [nowPlayingId])
+
   if (tracks.length === 0) {
     const query = searchQuery.trim()
     const vaultEmpty = libraryCount === 0
@@ -133,7 +148,11 @@ export function TrackTable({ tracks }: TrackTableProps) {
       {/* Mobile card list */}
       <ul className="flex flex-col gap-2 md:hidden" aria-label="Track library">
         {tracks.map((track) => {
-          const selected = track.id === selectedId
+          const { highlighted, cursor } = trackRowFlags(
+            track.id,
+            selectedId,
+            nowPlayingId,
+          )
           const playing = track.id === nowPlayingId
           const queued = queue.includes(track.id)
 
@@ -142,9 +161,11 @@ export function TrackTable({ tracks }: TrackTableProps) {
               key={track.id}
               data-track-id={track.id}
               className={`track-row rounded-xl border border-vault-border bg-vault-surface p-3 shadow-sm transition-colors ${
-                selected ? "ring-1 ring-vault-amber/50" : ""
+                highlighted ? "ring-1 ring-vault-amber/50" : ""
               }`}
-              data-selected={selected}
+              data-selected={highlighted}
+              data-cursor={cursor || undefined}
+              aria-current={highlighted ? "true" : undefined}
               onClick={() => select(track.id)}
             >
               <div className="flex min-w-0 gap-2 min-[400px]:gap-3">
@@ -311,7 +332,11 @@ export function TrackTable({ tracks }: TrackTableProps) {
             </thead>
             <tbody>
               {tracks.map((track) => {
-                const selected = track.id === selectedId
+                const { highlighted, cursor } = trackRowFlags(
+                  track.id,
+                  selectedId,
+                  nowPlayingId,
+                )
                 const playing = track.id === nowPlayingId
                 const queued = queue.includes(track.id)
 
@@ -320,7 +345,9 @@ export function TrackTable({ tracks }: TrackTableProps) {
                     key={track.id}
                     data-track-id={track.id}
                     className="track-row border-b border-vault-border/60 transition-colors last:border-0"
-                    data-selected={selected}
+                    data-selected={highlighted}
+                    data-cursor={cursor || undefined}
+                    aria-current={highlighted ? "true" : undefined}
                     onClick={() => select(track.id)}
                     onDoubleClick={() => play(track.id)}
                   >

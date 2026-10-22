@@ -142,6 +142,10 @@ html[data-artist-theme="ghost"] body::before {
   box-shadow: inset 3px 0 0 var(--color-vault-amber);
 }
 
+.track-row[data-cursor="true"] {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--color-vault-muted) 80%, transparent);
+}
+
 .track-row:active {
   background: color-mix(in srgb, var(--color-vault-elevated) 80%, transparent);
 }

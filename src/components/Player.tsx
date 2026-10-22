@@ -28,7 +28,11 @@ import {
   type WakeLockSentinelLike,
 } from "../lib/playbackSession"
 import { shouldAwardListenVote } from "../lib/listenVote"
-import { embedDrift, type EmbedDrift } from "../lib/playbackOrder"
+import {
+  embedDrift,
+  observedEmbedVideoId,
+  type EmbedDrift,
+} from "../lib/playbackOrder"
 import type { Track } from "../types"
 import { AudioVisualizer } from "./AudioVisualizer"
 import { AddToPlaylistMenu } from "./AddToPlaylistMenu"
@@ -98,6 +102,8 @@ export function Player() {
   const lastTimeRef = useRef(0)
   /** True once this mount has actually played the vault video. */
   const sawExpectedRef = useRef(false)
+  /** Length of the vault upload, sampled before a suggestion replaces it. */
+  const vaultDurationRef = useRef(0)
   /** ENDED and a YouTube suggestion can both ask to advance. Do it once. */
   const advancedRef = useRef(false)
   const followRef = useRef<(player: YtPlayer, forced?: EmbedDrift) => void>(
@@ -128,17 +134,35 @@ export function Player() {
       if (wiredTrackIdRef.current !== trackId) return
       let currentTime = lastTimeRef.current
       let duration = 0
-      let actual: string | undefined
+      let dataId: string | undefined
+      let videoUrl: string | undefined
       try {
         const t = player.getCurrentTime()
         if (Number.isFinite(t)) currentTime = t
         const d = player.getDuration()
         if (Number.isFinite(d)) duration = d
-        actual = player.getVideoData?.()?.video_id
+        try {
+          dataId = player.getVideoData?.()?.video_id
+        } catch {
+          dataId = undefined
+        }
+        try {
+          videoUrl = player.getVideoUrl?.()
+        } catch {
+          videoUrl = undefined
+        }
       } catch {
         if (!forced) return
       }
-      if (actual === videoId) sawExpectedRef.current = true
+      const actual = observedEmbedVideoId({
+        expectedVideoId: videoId,
+        dataId,
+        videoUrl,
+      })
+      if (actual === videoId) {
+        sawExpectedRef.current = true
+        if (duration > 0) vaultDurationRef.current = duration
+      }
       const drift =
         forced ??
         embedDrift({
@@ -148,6 +172,7 @@ export function Player() {
           previousTime: lastTimeRef.current,
           currentTime,
           duration,
+          vaultDuration: vaultDurationRef.current,
           sawExpected: sawExpectedRef.current,
         })
       if (drift === "stay") {
@@ -158,8 +183,10 @@ export function Player() {
       const cue = startSeconds > 0 ? startSeconds : 0
       if (drift === "recue" || drift === "restore") {
         try {
-          if (drift === "restore") player.loadVideoById(videoId)
-          player.seekTo(cue, true)
+          // stopVideo drops a same-channel suggestion that already started.
+          player.stopVideo()
+          if (drift === "restore") player.loadVideoById(videoId, cue)
+          else player.seekTo(cue, true)
           player.playVideo()
         } catch {
           // iframe may be tearing down
@@ -221,6 +248,7 @@ export function Player() {
     maxHeardRef.current = startSeconds
     lastTimeRef.current = startSeconds
     sawExpectedRef.current = false
+    vaultDurationRef.current = 0
     advancedRef.current = false
     endedFromErrorRef.current = false
     setUnavailable(null)
@@ -321,6 +349,13 @@ export function Player() {
       },
       onEnded: () => {
         if (cancelled || wiredTrackIdRef.current !== trackId) return
+        // Stop before anything else so YouTube cannot roll a same-channel
+        // suggestion while we award the listen and advance.
+        try {
+          playerRef.current?.stopVideo()
+        } catch {
+          // already gone
+        }
         let duration = 0
         try {
           duration = playerRef.current?.getDuration() ?? 0

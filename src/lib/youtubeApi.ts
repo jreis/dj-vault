@@ -47,7 +47,7 @@ declare global {
 
 export interface YtPlayer {
   destroy: () => void
-  loadVideoById: (id: string) => void
+  loadVideoById: (id: string, startSeconds?: number) => void
   cueVideoById: (id: string) => void
   playVideo: () => void
   pauseVideo: () => void
@@ -58,6 +58,8 @@ export interface YtPlayer {
   seekTo: (seconds: number, allowSeekAhead: boolean) => void
   /** Present on the real IFrame player. Absent in tests that only fake transport. */
   getVideoData?: () => { video_id?: string }
+  /** Watch-page URL for the loaded video. Updates when a suggestion starts. */
+  getVideoUrl?: () => string
 }
 
 /** The Player currently mounted in the page — used to resume from a user gesture. */

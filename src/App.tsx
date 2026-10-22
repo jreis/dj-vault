@@ -23,6 +23,7 @@ import {
   resolveArtistExperience,
 } from "./lib/artistExperience"
 import { filterAndSortTracks } from "./lib/filterTracks"
+import { fallbackSelection } from "./lib/trackRow"
 import { fetchShortShare } from "./lib/shareApi"
 import { fetchPublishedSeeds } from "./lib/seedApi"
 import {
@@ -138,14 +139,15 @@ export default function App() {
     return () => applyArtistTheme(null, document.documentElement)
   }, [artistExperience])
 
-  // After load (and when filters hide the current row), select the
-  // highest-voted track. Ties follow the score-desc track list, so the
-  // first of two rank-1 rows stays selected.
+  // After load (and when filters hide the current row), keep a row
+  // selected. The playing song wins over the first visible row, so the
+  // cursor does not land on a different track than the one you hear.
   useEffect(() => {
     if (!hydrated || visibleIds.length === 0) return
-    const sel = useVaultStore.getState().selectedId
-    if (!sel || !visibleIds.includes(sel)) {
-      useVaultStore.getState().select(visibleIds[0]!)
+    const { selectedId, nowPlayingId } = useVaultStore.getState()
+    const next = fallbackSelection(selectedId, nowPlayingId, visibleIds)
+    if (next && next !== selectedId) {
+      useVaultStore.getState().select(next)
     }
   }, [hydrated, visibleIds])
 
