@@ -325,9 +325,6 @@ export function TrackTable({ tracks }: TrackTableProps) {
                   Vote
                 </th>
                 <th className="min-w-0 px-3 py-2.5 font-medium">Track</th>
-                <th className="w-72 px-2 py-2.5 text-right font-medium">
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -339,12 +336,13 @@ export function TrackTable({ tracks }: TrackTableProps) {
                 )
                 const playing = track.id === nowPlayingId
                 const queued = queue.includes(track.id)
+                const showActions = cursor || highlighted
 
                 return (
                   <tr
                     key={track.id}
                     data-track-id={track.id}
-                    className="track-row border-b border-vault-border/60 transition-colors last:border-0"
+                    className="group track-row border-b border-vault-border/60 transition-colors last:border-0"
                     data-selected={highlighted}
                     data-cursor={cursor || undefined}
                     aria-current={highlighted ? "true" : undefined}
@@ -415,7 +413,7 @@ export function TrackTable({ tracks }: TrackTableProps) {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start gap-2">
-                            <span className="min-w-0 flex-1 font-medium wrap-break-word text-vault-text">
+                            <span className="min-w-0 flex-1 truncate font-medium text-vault-text">
                               {track.title}
                             </span>
                             {playing && (
@@ -431,11 +429,11 @@ export function TrackTable({ tracks }: TrackTableProps) {
                           </div>
                           <TrackDetails track={track} />
                         </div>
-                      </div>
-                    </td>
-
-                    <td className="px-2 py-2.5 text-right align-middle">
-                      <div className="flex flex-wrap justify-end gap-1">
+                      <div
+                        className={`shrink-0 items-center gap-1 ${
+                          showActions ? "flex" : "hidden"
+                        } group-hover:flex group-focus-within:flex`}
+                      >
                         <button
                           type="button"
                           onClick={(e) => {
@@ -506,6 +504,7 @@ export function TrackTable({ tracks }: TrackTableProps) {
                         >
                           ✕
                         </button>
+                      </div>
                       </div>
                     </td>
                   </tr>

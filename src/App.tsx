@@ -6,23 +6,22 @@ import { YoutubeSearchPanel } from "./components/YoutubeSearchPanel"
 import { TrackTable } from "./components/TrackTable"
 import { Player } from "./components/Player"
 import { AddTrackForm } from "./components/AddTrackForm"
-import { Toolbar } from "./components/Toolbar"
-import { PlaylistPanel } from "./components/PlaylistPanel"
+import { PlaylistStrip } from "./components/PlaylistStrip"
+import { PlaylistSet } from "./components/PlaylistSet"
 import { SharedSetBanner } from "./components/SharedSetBanner"
 import { SimilarTracks } from "./components/SimilarTracks"
-import { DiscoveryPanel } from "./components/DiscoveryPanel"
 import { RadioMode } from "./components/RadioMode"
-import { MusicProfile } from "./components/MusicProfile"
-import { WelcomeBanner } from "./components/WelcomeBanner"
 import { ShortcutsModal } from "./components/ShortcutsModal"
 import { FeatureTour } from "./components/FeatureTour"
 import { Toast } from "./components/Toast"
 import { MobilePlayerBar } from "./components/MobilePlayerBar"
+import { SEED_TRACKS } from "./data/seedTracks"
+import { seedsForPlaylist, tracksForPlaylist } from "./lib/playlistPlayback"
 import {
   applyArtistTheme,
   resolveArtistExperience,
 } from "./lib/artistExperience"
-import { filterAndSortTracks } from "./lib/filterTracks"
+import { filterAndSortTracks, visibleSetSongs } from "./lib/filterTracks"
 import { fallbackSelection } from "./lib/trackRow"
 import { fetchShortShare } from "./lib/shareApi"
 import { fetchPublishedSeeds } from "./lib/seedApi"
@@ -39,8 +38,14 @@ import { useMobileBarVisible } from "./hooks/useMobileBarVisible"
 
 export default function App() {
   const tracks = useVaultStore((s) => s.tracks)
+  const heldTracks = useVaultStore((s) => s.heldTracks)
+  const publishedSeeds = useVaultStore((s) => s.publishedSeeds)
+  const guestTracks = useVaultStore((s) => s.guestTracks)
+  const previewTrack = useVaultStore((s) => s.previewTrack)
+  const playlists = useVaultStore((s) => s.playlists)
   const filters = useVaultStore((s) => s.filters)
   const showAddForm = useVaultStore((s) => s.showAddForm)
+  const setMode = useVaultStore((s) => s.setMode)
   const loadGuestSet = useVaultStore((s) => s.loadGuestSet)
   const applyPublishedSeeds = useVaultStore((s) => s.applyPublishedSeeds)
   const setSeedPublishConfigured = useVaultStore(
@@ -50,6 +55,7 @@ export default function App() {
 
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [shareLoading, setShareLoading] = useState(false)
+  const [readingPlaylistId, setReadingPlaylistId] = useState<string | null>(null)
   const [hydrated, setHydrated] = useState(() =>
     useVaultStore.persist.hasHydrated(),
   )
@@ -128,12 +134,30 @@ export default function App() {
     () => filterAndSortTracks(tracks, filters),
     [tracks, filters],
   )
-  const visibleIds = useMemo(() => visible.map((t) => t.id), [visible])
+  const reading = playlists.find((playlist) => playlist.id === readingPlaylistId)
   const artistExperience = useMemo(
     () => resolveArtistExperience(filters.query),
     [filters.query],
   )
-
+  const readingAll = useMemo(() => {
+    if (!reading) return null
+    return tracksForPlaylist(reading.trackIds, {
+      library: tracks,
+      held: heldTracks,
+      seeds: seedsForPlaylist(publishedSeeds, SEED_TRACKS),
+      guestTracks,
+      previewTrack,
+    })
+  }, [reading, tracks, heldTracks, publishedSeeds, guestTracks, previewTrack])
+  const readingSongs = useMemo(
+    () => (readingAll ? visibleSetSongs(readingAll, filters) : null),
+    [readingAll, filters],
+  )
+  const showingSet = Boolean(reading) && !artistExperience
+  const visibleIds = useMemo(
+    () => (showingSet && readingSongs ? readingSongs : visible).map((t) => t.id),
+    [showingSet, readingSongs, visible],
+  )
   useEffect(() => {
     applyArtistTheme(artistExperience?.theme ?? null, document.documentElement)
     return () => applyArtistTheme(null, document.documentElement)
@@ -169,11 +193,10 @@ export default function App() {
     >
       <Header
         trackCount={tracks.length}
-        visibleCount={visible.length}
+        visibleCount={showingSet ? tracks.length : visible.length}
         onOpenShortcuts={openShortcuts}
       />
 
-      <WelcomeBanner onOpenShortcuts={openShortcuts} />
       <SharedSetBanner />
 
       {shareLoading && (
@@ -182,61 +205,51 @@ export default function App() {
         </div>
       )}
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 sm:px-6 sm:py-5">
-        <div className="mb-4">
-          <Toolbar />
-        </div>
-
-        {!artistExperience && (
-          <>
-            <div className="mb-4">
-              <DiscoveryPanel />
-            </div>
-            <div className="mb-4">
-              <RadioMode />
-            </div>
-            <div className="mb-4">
-              <MusicProfile />
-            </div>
-          </>
-        )}
-
+      <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-3 sm:px-5 sm:py-4">
         {showAddForm && (
-          <div className="mb-5 animate-fade-in">
+          <div className="mb-4 animate-fade-in">
             <AddTrackForm />
           </div>
         )}
-
-        <div className="mb-4">
-          <FilterBar />
-        </div>
 
         {artistExperience && (
           <ArtistExperiencePanel experience={artistExperience} />
         )}
 
         <YoutubeSearchPanel />
-
         <SimilarTracks />
 
         {/* Player first on mobile so thumbs can start a set quickly */}
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
           <section
             aria-label="Player and queue"
-            className="order-1 min-w-0 lg:order-2 lg:sticky lg:top-20 lg:self-start"
+            className={`order-1 min-w-0 space-y-3 lg:order-2 lg:self-start ${
+              // Sticky traps Set Mode's fixed layer under the header.
+              setMode ? "" : "lg:sticky lg:top-20"
+            }`}
           >
             <Player />
+            {!artistExperience && <RadioMode />}
           </section>
           <section
-            aria-label="Track library"
+            aria-label={reading ? reading.name : "Track library"}
             className="order-2 min-w-0 lg:order-1"
           >
-            <TrackTable tracks={visible} />
+            {!artistExperience && (
+              <PlaylistStrip
+                selectedId={reading?.id ?? null}
+                onSelect={setReadingPlaylistId}
+              />
+            )}
+            <div className="mb-3">
+              <FilterBar scope={showingSet ? readingAll : null} />
+            </div>
+            {reading && !artistExperience ? (
+              <PlaylistSet playlist={reading} />
+            ) : (
+              <TrackTable tracks={visible} />
+            )}
           </section>
-        </div>
-
-        <div className="mt-4">
-          <PlaylistPanel />
         </div>
       </main>
 

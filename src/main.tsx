@@ -14,8 +14,26 @@ try {
   // private mode / blocked storage
 }
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+const root = createRoot(document.getElementById("root")!)
+
+async function boot() {
+  const variant = new URLSearchParams(window.location.search).get("variant")
+  if (import.meta.env.DEV && variant) {
+    const { ListeningRoomPrototype } = await import(
+      "./prototype/ListeningRoomPrototype.tsx"
+    )
+    root.render(
+      <StrictMode>
+        <ListeningRoomPrototype />
+      </StrictMode>,
+    )
+    return
+  }
+  root.render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+}
+
+void boot()

@@ -5,9 +5,13 @@ import type { Genre, Era } from "../types"
 /**
  * Music Profile - Shows user's taste analysis
  */
-export function MusicProfile() {
+export function MusicProfile({
+  defaultExpanded = false,
+}: {
+  defaultExpanded?: boolean
+} = {}) {
   const tracks = useVaultStore((s) => s.tracks)
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(defaultExpanded)
 
   const profile = useMemo(() => {
     if (tracks.length === 0) return null

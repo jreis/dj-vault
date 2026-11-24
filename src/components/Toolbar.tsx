@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import type { Track } from "../types"
 import { SEED_TRACKS } from "../data/seedTracks"
 import {
@@ -37,7 +38,7 @@ function resolveSetTracks(s: {
     .filter((t): t is Track => Boolean(t))
 }
 
-export function Toolbar() {
+export function Toolbar({ compact = false }: { compact?: boolean }) {
   const tracks = useVaultStore((s) => s.tracks)
   const heldTracks = useVaultStore((s) => s.heldTracks)
   const publishedSeeds = useVaultStore((s) => s.publishedSeeds)
@@ -82,6 +83,19 @@ export function Toolbar() {
       }),
     )
   }, [seedPublishConfigured])
+
+  useEffect(() => {
+    const dialogOpen = Boolean(pendingImport) || (showSeedPublisher && seedDialogOpen)
+    if (!dialogOpen) return
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== "Escape") return
+      event.stopPropagation()
+      if (pendingImport) setPendingImport(null)
+      else if (!seedBusy) setSeedDialogOpen(false)
+    }
+    window.addEventListener("keydown", onKey, true)
+    return () => window.removeEventListener("keydown", onKey, true)
+  }, [pendingImport, seedDialogOpen, showSeedPublisher, seedBusy])
 
   function exportJson(source: "library" | "queue" | "set") {
     let list = tracks
@@ -336,6 +350,7 @@ export function Toolbar() {
           Clear tracks
         </button>
 
+        {!compact && (
         <span className="ml-auto hidden text-vault-muted/70 lg:inline">
           <kbd className="rounded border border-vault-border px-1 font-mono">
             j
@@ -366,11 +381,13 @@ export function Toolbar() {
           </kbd>{" "}
           help
         </span>
+        )}
       </div>
 
-      {pendingImport && (
+      {pendingImport &&
+        createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+          className="fixed inset-0 z-[120] flex items-end justify-center p-4 sm:items-center"
           role="dialog"
           aria-modal="true"
           aria-labelledby="import-title"
@@ -419,12 +436,15 @@ export function Toolbar() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
 
-      {showSeedPublisher && seedDialogOpen && (
+      {showSeedPublisher &&
+        seedDialogOpen &&
+        createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+          className="fixed inset-0 z-[120] flex items-end justify-center p-4 sm:items-center"
           role="dialog"
           aria-modal="true"
           aria-labelledby="seed-title"
@@ -501,8 +521,9 @@ export function Toolbar() {
               </button>
             </div>
           </form>
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
     </div>
   )
 }

@@ -18,6 +18,15 @@ export function matchesQuery(track: Track, query: string): boolean {
   )
 }
 
+/** Playlist order, narrowed by the library filters. Does not re-sort. */
+export function visibleSetSongs(songs: Track[], filters: Filters): Track[] {
+  return songs.filter((song) => {
+    if (filters.genre !== "All" && song.genre !== filters.genre) return false
+    if (filters.era !== "All" && song.era !== filters.era) return false
+    return matchesQuery(song, filters.query)
+  })
+}
+
 export function filterAndSortTracks(tracks: Track[], filters: Filters): Track[] {
   let result = tracks.filter((t) => {
     if (filters.genre !== "All" && t.genre !== filters.genre) return false

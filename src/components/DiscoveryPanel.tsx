@@ -4,11 +4,17 @@ import { useToastStore } from "../store/useToastStore"
 import { getDiscoverySuggestions } from "../lib/artistRelations"
 import { getSuggestedArtists } from "../lib/similarTracks"
 
-export function DiscoveryPanel() {
+export function DiscoveryPanel({
+  onNavigate,
+  defaultExpanded = false,
+}: {
+  onNavigate?: () => void
+  defaultExpanded?: boolean
+} = {}) {
   const tracks = useVaultStore((s) => s.tracks)
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const showToast = useToastStore((s) => s.show)
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(defaultExpanded)
 
   const currentTrack = nowPlayingId
     ? tracks.find((t) => t.id === nowPlayingId)
@@ -40,6 +46,7 @@ export function DiscoveryPanel() {
   }
 
   function openYouTubeSearch(artist: string) {
+    onNavigate?.()
     useVaultStore.getState().requestYoutubeSearch(artist)
     queueMicrotask(() => {
       document

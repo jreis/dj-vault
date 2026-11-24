@@ -1,9 +1,10 @@
 import { useMemo } from "react"
-import { ERAS, GENRES, type SortKey } from "../types"
+import { ERAS, GENRES, type SortKey, type Track } from "../types"
 import {
   filterAndSortTracks,
   genreCounts,
   hasActiveFilters,
+  visibleSetSongs,
 } from "../lib/filterTracks"
 import {
   looksLikeArtistQuery,
@@ -22,24 +23,28 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "addedAt", label: "Added" },
 ]
 
-export function FilterBar() {
+export function FilterBar({ scope = null }: { scope?: Track[] | null }) {
   const tracks = useVaultStore((s) => s.tracks)
   const filters = useVaultStore((s) => s.filters)
   const setFilters = useVaultStore((s) => s.setFilters)
   const clearFilters = useVaultStore((s) => s.clearFilters)
   const enqueueMany = useVaultStore((s) => s.enqueueMany)
   const playSet = useVaultStore((s) => s.playSet)
+  const universe = scope ?? tracks
 
   const counts = useMemo(
-    () => genreCounts(tracks, { query: filters.query, era: filters.era }),
-    [tracks, filters.query, filters.era],
+    () => genreCounts(universe, { query: filters.query, era: filters.era }),
+    [universe, filters.query, filters.era],
   )
 
   const active = hasActiveFilters(filters)
 
   const matchingIds = useMemo(
-    () => filterAndSortTracks(tracks, filters).map((t) => t.id),
-    [tracks, filters],
+    () =>
+      scope
+        ? visibleSetSongs(scope, filters).map((t) => t.id)
+        : filterAndSortTracks(tracks, filters).map((t) => t.id),
+    [scope, tracks, filters],
   )
   const typedQuery = filters.query.trim()
   const artistQuery = looksLikeArtistQuery(typedQuery)
@@ -140,39 +145,41 @@ export function FilterBar() {
           </select>
         </label>
 
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium uppercase tracking-wide text-vault-muted">
-            Sort
-          </span>
-          <div className="flex gap-1">
-            <select
-              value={filters.sortKey}
-              onChange={(e) =>
-                setFilters({ sortKey: e.target.value as SortKey })
-              }
-              className="rounded-lg border border-vault-border bg-vault-elevated px-3 py-2 text-sm text-vault-text focus:border-vault-amber focus:outline-none"
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() =>
-                setFilters({
-                  sortDir: filters.sortDir === "asc" ? "desc" : "asc",
-                })
-              }
-              className="rounded-lg border border-vault-border bg-vault-elevated px-2.5 py-2 text-sm text-vault-muted hover:text-vault-amber"
-              title={filters.sortDir === "asc" ? "Ascending" : "Descending"}
-              aria-label={`Sort ${filters.sortDir === "asc" ? "ascending" : "descending"}`}
-            >
-              {filters.sortDir === "asc" ? "↑" : "↓"}
-            </button>
-          </div>
-        </label>
+        {!scope && (
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium uppercase tracking-wide text-vault-muted">
+              Sort
+            </span>
+            <div className="flex gap-1">
+              <select
+                value={filters.sortKey}
+                onChange={(e) =>
+                  setFilters({ sortKey: e.target.value as SortKey })
+                }
+                className="rounded-lg border border-vault-border bg-vault-elevated px-3 py-2 text-sm text-vault-text focus:border-vault-amber focus:outline-none"
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() =>
+                  setFilters({
+                    sortDir: filters.sortDir === "asc" ? "desc" : "asc",
+                  })
+                }
+                className="rounded-lg border border-vault-border bg-vault-elevated px-2.5 py-2 text-sm text-vault-muted hover:text-vault-amber"
+                title={filters.sortDir === "asc" ? "Ascending" : "Descending"}
+                aria-label={`Sort ${filters.sortDir === "asc" ? "ascending" : "descending"}`}
+              >
+                {filters.sortDir === "asc" ? "↑" : "↓"}
+              </button>
+            </div>
+          </label>
+        )}
 
         {active && (
           <button
@@ -213,7 +220,7 @@ export function FilterBar() {
         })}
       </div>
 
-      {matchingIds.length > 0 && (
+      {matchingIds.length > 0 && (!scope || active) && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-vault-muted">
             <span className="font-mono text-vault-amber">

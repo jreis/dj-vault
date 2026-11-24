@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "test": "node --experimental-strip-types --test scripts/*.test.ts",
     "preview": "vite preview",
-    "preview:site": "npm run build && npx --yes serve dist -p 4173"
+    "preview:site": "npm run build && npx --yes serve dist -p 4173",
+    "prototype": "vite --open /djvault/?variant=deck"
   },
   "dependencies": {
     "react": "^19.2.7",

@@ -1,5 +1,6 @@
 import { resolveArtistExperience } from "../lib/artistExperience"
 import { useVaultStore } from "../store/useVaultStore"
+import { VaultMenu } from "./VaultMenu"
 
 interface HeaderProps {
   trackCount: number
@@ -83,6 +84,7 @@ export function Header({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <VaultMenu />
           <button
             type="button"
             onClick={toggleSetMode}
