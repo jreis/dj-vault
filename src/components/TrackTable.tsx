@@ -77,6 +77,8 @@ export function TrackTable({ tracks }: TrackTableProps) {
 
   useEffect(() => {
     if (!nowPlayingId) return
+    // A track change would pull the page back to the row and hide Similar.
+    if (useVaultStore.getState().similarToId) return
     const nodes = document.querySelectorAll(
       `[data-track-id="${CSS.escape(nowPlayingId)}"]`,
     )

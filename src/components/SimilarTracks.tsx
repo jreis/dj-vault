@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   findSimilarTracks,
   youtubeArtistSearchUrl,
@@ -16,8 +16,11 @@ import { useToastStore } from "../store/useToastStore"
 
 export function SimilarTracks() {
   const tracks = useVaultStore((s) => s.tracks)
-  const similarToId = useVaultStore((s) => s.similarToId)
   const setSimilarTo = useVaultStore((s) => s.setSimilarTo)
+  const seed = useVaultStore((s) =>
+    s.similarToId ? (s.resolveTrack(s.similarToId) ?? null) : null,
+  )
+  const panelRef = useRef<HTMLElement>(null)
   const play = useVaultStore((s) => s.play)
   const enqueueNext = useVaultStore((s) => s.enqueueNext)
   const enqueueMany = useVaultStore((s) => s.enqueueMany)
@@ -27,11 +30,6 @@ export function SimilarTracks() {
   const nowPlayingId = useVaultStore((s) => s.nowPlayingId)
   const addTrack = useVaultStore((s) => s.addTrack)
   const showToast = useToastStore((s) => s.show)
-
-  const seed = useMemo(
-    () => tracks.find((t) => t.id === similarToId) ?? null,
-    [tracks, similarToId],
-  )
 
   const matches = useMemo(
     () => (seed ? findSimilarTracks(seed, tracks, 10) : []),
@@ -90,6 +88,20 @@ export function SimilarTracks() {
 
     return () => ac.abort()
   }, [seed])
+
+  // The panel sits above the library. Set mode covers that page, so a
+  // click on Similar while a set is up never showed the list.
+  const seedId = seed?.id
+  useEffect(() => {
+    if (!seedId) return
+    if (useVaultStore.getState().setMode) {
+      useVaultStore.getState().setSetMode(false)
+    }
+    const node = panelRef.current
+    requestAnimationFrame(() => {
+      node?.scrollIntoView({ block: "start", behavior: "smooth" })
+    })
+  }, [seedId])
 
   if (!seed) return null
 
@@ -158,7 +170,8 @@ export function SimilarTracks() {
 
   return (
     <section
-      className="mb-5 overflow-hidden rounded-xl border border-vault-blue/30 bg-vault-surface shadow-lg"
+      ref={panelRef}
+      className="mb-5 scroll-mt-20 overflow-hidden rounded-xl border border-vault-blue/30 bg-vault-surface shadow-lg"
       aria-label={`Tracks similar to ${seed.title}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-vault-border px-4 py-3">
